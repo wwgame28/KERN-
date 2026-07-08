@@ -1,0 +1,774 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>KERN AMR — Far East Streetwear</title>
+  <meta name="description" content="KERN AMR — уличный бренд одежды из Амурской области. Футболки, принты, вышивка AMR / 28, дальневосточный вайб." />
+  <style>
+    :root {
+      --bg: #0c0c0c;
+      --ink: #f3eee6;
+      --muted: rgba(243,238,230,.62);
+      --blue: #2e5f83;
+      --orange: #f06a13;
+      --line: rgba(243,238,230,.16);
+      --card: rgba(255,255,255,.055);
+      --shadow: 0 30px 90px rgba(0,0,0,.55);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Montserrat, Inter, Arial, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 20% 0%, rgba(46,95,131,.35), transparent 34%),
+        radial-gradient(circle at 85% 12%, rgba(240,106,19,.22), transparent 28%),
+        linear-gradient(180deg, #070707 0%, #141414 44%, #0b0b0b 100%);
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px),
+        linear-gradient(0deg, rgba(255,255,255,.026) 1px, transparent 1px);
+      background-size: 44px 44px;
+      mask-image: linear-gradient(180deg, black, transparent 75%);
+      z-index: 0;
+    }
+
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: .13;
+      mix-blend-mode: overlay;
+      background-image:
+        repeating-radial-gradient(circle at 50% 50%, rgba(255,255,255,.55) 0 1px, transparent 1px 3px);
+      z-index: 1;
+    }
+
+    .page { position: relative; z-index: 2; }
+
+    .nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 20;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 18px clamp(16px, 4vw, 54px);
+      backdrop-filter: blur(18px);
+      background: linear-gradient(180deg, rgba(12,12,12,.76), rgba(12,12,12,.24));
+      border-bottom: 1px solid rgba(255,255,255,.08);
+    }
+
+    .logo {
+      font-weight: 950;
+      letter-spacing: -.08em;
+      font-size: clamp(28px, 5vw, 54px);
+      line-height: .82;
+      text-transform: uppercase;
+    }
+
+    .logo span { color: var(--blue); letter-spacing: -.09em; }
+
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .sound {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255,255,255,.08);
+      color: var(--ink);
+      padding: 11px 14px;
+      font: inherit;
+      font-size: 10px;
+      letter-spacing: .12em;
+      cursor: pointer;
+      transition: transform .25s ease, background .25s ease;
+    }
+    .sound.active { background: var(--orange); color: #111; }
+    .sound:active { transform: scale(.96); }
+
+    .hero {
+      min-height: 100svh;
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(320px, .9fr);
+      align-items: center;
+      gap: clamp(24px, 5vw, 70px);
+      padding: 118px clamp(16px, 5vw, 72px) 60px;
+    }
+
+    .hero-copy { max-width: 720px; }
+    .kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 22px;
+      color: var(--orange);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: .2em;
+      text-transform: uppercase;
+    }
+    .kicker::before {
+      content: "";
+      width: 42px; height: 2px;
+      background: var(--orange);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(54px, 11vw, 160px);
+      line-height: .78;
+      letter-spacing: -.105em;
+      text-transform: uppercase;
+      text-wrap: balance;
+    }
+    h1 .blue { color: var(--blue); }
+    h1 .orange { color: var(--orange); }
+
+    .lead {
+      margin: 30px 0 0;
+      max-width: 580px;
+      color: var(--muted);
+      font-size: clamp(16px, 2.4vw, 20px);
+      line-height: 1.55;
+      font-weight: 600;
+    }
+
+    .cta-row {
+      margin-top: 34px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 50px;
+      padding: 0 22px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--ink);
+      color: #111;
+      font-weight: 950;
+      font-size: 12px;
+      letter-spacing: .15em;
+      text-transform: uppercase;
+      text-decoration: none;
+      cursor: pointer;
+      transition: transform .25s ease, background .25s ease, color .25s ease;
+    }
+    .btn.secondary {
+      background: transparent;
+      color: var(--ink);
+    }
+    .btn:hover { transform: translateY(-3px); background: var(--orange); color: #111; }
+
+    .badge-stack {
+      position: relative;
+      min-height: 520px;
+      display: grid;
+      place-items: center;
+    }
+    .badge {
+      position: absolute;
+      width: min(76vw, 420px);
+      aspect-ratio: 1;
+      border-radius: 42px;
+      border: 1px solid var(--line);
+      background: linear-gradient(145deg, rgba(255,255,255,.12), rgba(255,255,255,.03));
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      transform: rotate(var(--rot)) translate(var(--x), var(--y));
+      animation: floaty 6s ease-in-out infinite;
+    }
+    .badge:nth-child(2){ animation-delay: -1.8s; opacity: .9; }
+    .badge:nth-child(3){ animation-delay: -3.2s; opacity: .84; }
+
+    @keyframes floaty {
+      0%, 100% { translate: 0 0; }
+      50% { translate: 0 -14px; }
+    }
+
+    .badge svg { width: 100%; height: 100%; display: block; }
+
+    .ticker {
+      border-block: 1px solid var(--line);
+      overflow: hidden;
+      white-space: nowrap;
+      background: rgba(255,255,255,.045);
+    }
+    .ticker-track {
+      display: inline-flex;
+      gap: 28px;
+      padding: 16px 0;
+      animation: ticker 22s linear infinite;
+      font-weight: 950;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+      color: var(--ink);
+    }
+    .ticker-track span { color: var(--orange); }
+    @keyframes ticker {
+      from { transform: translateX(0); }
+      to { transform: translateX(-50%); }
+    }
+
+    .lookbook {
+      padding: 72px clamp(16px, 5vw, 72px);
+      display: grid;
+      grid-template-columns: minmax(0, .7fr) minmax(320px, 1fr);
+      gap: clamp(24px, 6vw, 80px);
+      align-items: center;
+    }
+
+    .section-title {
+      margin: 0 0 16px;
+      font-size: clamp(34px, 7vw, 88px);
+      line-height: .86;
+      letter-spacing: -.08em;
+      text-transform: uppercase;
+    }
+    .section-title span { color: var(--orange); }
+
+    .mini-text {
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.55;
+      font-weight: 600;
+      max-width: 440px;
+    }
+
+    .slider {
+      position: relative;
+      perspective: 1200px;
+      user-select: none;
+      touch-action: pan-y;
+    }
+
+    .shirt-card {
+      position: relative;
+      min-height: min(108vw, 620px);
+      border: 1px solid var(--line);
+      border-radius: 34px;
+      background:
+        radial-gradient(circle at 50% 10%, rgba(255,255,255,.13), transparent 34%),
+        linear-gradient(145deg, rgba(255,255,255,.12), rgba(255,255,255,.025));
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      transform-style: preserve-3d;
+      transition: transform .72s cubic-bezier(.2,.8,.2,1);
+    }
+    .shirt-card.is-turning { transform: rotateY(18deg) scale(.985); }
+
+    .shirt-scene {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 36px;
+    }
+
+    .shirt {
+      position: relative;
+      width: min(82vw, 420px);
+      height: 520px;
+      filter: drop-shadow(0 40px 70px rgba(0,0,0,.55));
+      transition: transform .55s cubic-bezier(.2,.8,.2,1);
+    }
+    .shirt-card:hover .shirt { transform: translateY(-10px) rotate(-1.5deg); }
+
+    .tee-body {
+      position: absolute;
+      left: 21%;
+      top: 18%;
+      width: 58%;
+      height: 68%;
+      border-radius: 32px 32px 46px 46px;
+      background: var(--shirt);
+      border: 1px solid rgba(255,255,255,.14);
+      overflow: hidden;
+    }
+    .tee-left, .tee-right {
+      position: absolute;
+      top: 16%;
+      width: 27%;
+      height: 26%;
+      background: var(--shirt);
+      border: 1px solid rgba(255,255,255,.12);
+      transform-origin: top center;
+      border-radius: 26px;
+      z-index: -1;
+    }
+    .tee-left { left: 5%; transform: rotate(18deg); }
+    .tee-right { right: 5%; transform: rotate(-18deg); }
+    .collar {
+      position: absolute;
+      left: 38%;
+      top: 16.8%;
+      width: 24%;
+      height: 46px;
+      border-radius: 0 0 999px 999px;
+      background: #0a0a0a;
+      border: 8px solid rgba(255,255,255,.09);
+      border-top: 0;
+    }
+
+    .print {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      padding: 70px 22px 40px;
+      transition: opacity .25s ease, transform .42s ease;
+    }
+
+    .print .kern {
+      font-size: 58px;
+      font-weight: 950;
+      letter-spacing: -.09em;
+      color: var(--ink);
+      line-height: .86;
+    }
+    .print .amr {
+      font-size: 64px;
+      font-weight: 950;
+      letter-spacing: -.08em;
+      color: var(--blue);
+      line-height: .88;
+    }
+    .print .tag {
+      margin-top: 18px;
+      font-size: 16px;
+      font-weight: 950;
+      letter-spacing: .16em;
+      color: var(--ink);
+      text-transform: uppercase;
+    }
+    .print .num {
+      position: absolute;
+      top: 56px;
+      right: 48px;
+      color: var(--orange);
+      font-weight: 950;
+      font-size: 32px;
+    }
+    .bridge-line {
+      width: 210px;
+      height: 58px;
+      margin: -10px auto 12px;
+    }
+    .waves {
+      width: 230px;
+      height: 34px;
+      margin: 10px auto 0;
+    }
+    .sleeve-mark {
+      position: absolute;
+      right: 58px;
+      top: 180px;
+      padding: 8px 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.16);
+      background: rgba(0,0,0,.28);
+      font-weight: 950;
+      font-size: 13px;
+      letter-spacing: .08em;
+      transform: rotate(-8deg);
+    }
+
+    .slide-meta {
+      position: absolute;
+      left: 26px;
+      right: 26px;
+      bottom: 24px;
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      align-items: end;
+      z-index: 5;
+    }
+    .slide-name {
+      font-size: clamp(25px, 5vw, 46px);
+      line-height: .88;
+      letter-spacing: -.075em;
+      font-weight: 950;
+      text-transform: uppercase;
+    }
+    .slide-desc {
+      max-width: 260px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+      font-weight: 700;
+      text-align: right;
+    }
+
+    .controls {
+      margin-top: 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+    }
+    .arrow {
+      width: 58px;
+      height: 58px;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      background: rgba(255,255,255,.08);
+      color: var(--ink);
+      font-size: 24px;
+      cursor: pointer;
+      transition: transform .25s ease, background .25s ease;
+    }
+    .arrow:hover { background: var(--orange); color: #111; transform: translateY(-3px); }
+    .dots { display: flex; gap: 10px; }
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: rgba(255,255,255,.28);
+      transition: width .25s ease, background .25s ease;
+    }
+    .dot.active { width: 34px; background: var(--orange); }
+
+    .grid {
+      padding: 20px clamp(16px, 5vw, 72px) 90px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+    .feature {
+      min-height: 180px;
+      border: 1px solid var(--line);
+      border-radius: 26px;
+      background: var(--card);
+      padding: 24px;
+      transform: translateY(28px);
+      opacity: 0;
+      transition: transform .75s ease, opacity .75s ease;
+    }
+    .feature.show { transform: translateY(0); opacity: 1; }
+    .feature b {
+      display: block;
+      font-size: 36px;
+      line-height: .9;
+      letter-spacing: -.08em;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+    .feature p { margin: 0; color: var(--muted); line-height: 1.55; font-weight: 650; }
+
+    .footer {
+      border-top: 1px solid var(--line);
+      padding: 32px clamp(16px, 5vw, 72px);
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      color: var(--muted);
+      font-weight: 900;
+      letter-spacing: .16em;
+      font-size: 11px;
+      text-transform: uppercase;
+    }
+
+    @media (max-width: 900px) {
+      .hero, .lookbook { grid-template-columns: 1fr; }
+      .badge-stack { min-height: 420px; }
+      .nav-right .label { display: none; }
+      .grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 540px) {
+      .nav { padding: 14px 16px; }
+      .hero { padding-top: 104px; }
+      .badge { width: 78vw; border-radius: 30px; }
+      .shirt-card { min-height: 640px; border-radius: 26px; }
+      .shirt { width: 92vw; height: 500px; }
+      .print .kern { font-size: 50px; }
+      .print .amr { font-size: 56px; }
+      .slide-meta { display: block; }
+      .slide-desc { text-align: left; margin-top: 9px; }
+      .footer { display: block; }
+      .footer div + div { margin-top: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <nav class="nav">
+      <div class="logo">KERN <span>AMR</span></div>
+      <div class="nav-right">
+        <span class="label">AMUR REGION / 28</span>
+        <button class="sound" id="soundBtn" type="button">SOUND OFF</button>
+      </div>
+    </nav>
+
+    <section class="hero" id="top">
+      <div class="hero-copy">
+        <div class="kicker">Streetwear / Far East / 28</div>
+        <h1>KERN<br><span class="blue">AMR</span><br><span class="orange">DROP 01</span></h1>
+        <p class="lead">Футболки с уличными принтами и вышивкой AMR / 28. Районы, Амур, мост, граница и дальневосточный характер без туристической тоски.</p>
+        <div class="cta-row">
+          <a class="btn" href="#lookbook">Смотреть дроп</a>
+          <button class="btn secondary" id="randomBtn" type="button">Случайный дизайн</button>
+        </div>
+      </div>
+
+      <div class="badge-stack" aria-label="Брендовые знаки KERN AMR">
+        <div class="badge" style="--rot:-8deg;--x:-28px;--y:18px">
+          <svg viewBox="0 0 500 500" role="img" aria-label="KERN AMR logo">
+            <rect width="500" height="500" fill="#111"/>
+            <text x="50" y="180" fill="#f3eee6" font-size="96" font-weight="900" font-family="Arial Black">KERN</text>
+            <text x="82" y="292" fill="#2e5f83" font-size="112" font-weight="900" font-family="Arial Black">AMR</text>
+            <text x="390" y="96" fill="#f06a13" font-size="54" font-weight="900" font-family="Arial Black">28</text>
+            <text x="63" y="390" fill="#f3eee6" font-size="28" font-weight="900" font-family="Arial" letter-spacing="5">AMUR REGION / 28</text>
+          </svg>
+        </div>
+        <div class="badge" style="--rot:7deg;--x:34px;--y:-24px">
+          <svg viewBox="0 0 500 500">
+            <rect width="500" height="500" fill="#161616"/>
+            <path d="M60 286 C170 160 330 160 440 286" fill="none" stroke="#f3eee6" stroke-width="12"/>
+            <path d="M60 286 L440 286 M110 286 L160 238 M160 286 L220 214 M220 286 L286 208 M286 286 L346 226 M346 286 L400 246" stroke="#f3eee6" stroke-width="7"/>
+            <text x="82" y="178" fill="#f3eee6" font-size="92" font-weight="900" font-family="Arial Black">KERN</text>
+            <text x="115" y="358" fill="#2e5f83" font-size="110" font-weight="900" font-family="Arial Black">AMR</text>
+          </svg>
+        </div>
+        <div class="badge" style="--rot:-1deg;--x:0px;--y:0px">
+          <svg viewBox="0 0 500 500">
+            <rect width="500" height="500" fill="#f3eee6"/>
+            <text x="-28" y="220" fill="#111" font-size="90" font-weight="900" font-family="Arial Black">KERN AMR</text>
+            <rect x="95" y="245" width="310" height="10" fill="#2e5f83"/>
+            <text x="150" y="312" fill="#111" font-size="32" font-weight="900" font-family="Arial" letter-spacing="3">RIGHT SLEEVE</text>
+            <text x="182" y="360" fill="#111" font-size="34" font-weight="900" font-family="Arial">AMR / 28</text>
+          </svg>
+        </div>
+      </div>
+    </section>
+
+    <div class="ticker">
+      <div class="ticker-track">
+        <div>KERN AMR <span>/</span> AMUR REGION <span>/</span> FAR EAST GARMENTS <span>/</span> RIGHT SLEEVE EMBROIDERY <span>/</span> BUILT TO LAST <span>/</span></div>
+        <div>KERN AMR <span>/</span> AMUR REGION <span>/</span> FAR EAST GARMENTS <span>/</span> RIGHT SLEEVE EMBROIDERY <span>/</span> BUILT TO LAST <span>/</span></div>
+      </div>
+    </div>
+
+    <section class="lookbook" id="lookbook">
+      <div>
+        <h2 class="section-title">DROP<br><span>01</span></h2>
+        <p class="mini-text">Листай дизайны. При включенном звуке переключение и прокрутка дают короткий тактильный щелчок. Никаких внешних аудиофайлов, всё генерируется в браузере.</p>
+      </div>
+
+      <div class="slider" id="slider">
+        <div class="shirt-card" id="shirtCard">
+          <div class="shirt-scene">
+            <div class="shirt" id="shirt">
+              <div class="tee-left"></div>
+              <div class="tee-right"></div>
+              <div class="tee-body">
+                <div class="print" id="print"></div>
+              </div>
+              <div class="collar"></div>
+            </div>
+          </div>
+          <div class="slide-meta">
+            <div class="slide-name" id="slideName"></div>
+            <div class="slide-desc" id="slideDesc"></div>
+          </div>
+        </div>
+
+        <div class="controls">
+          <button class="arrow" id="prev" type="button" aria-label="Назад">←</button>
+          <div class="dots" id="dots"></div>
+          <button class="arrow" id="next" type="button" aria-label="Вперёд">→</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid">
+      <article class="feature"><b>AMR / 28</b><p>Региональный код и короткий знак бренда. Работает на груди, рукаве, бирке и упаковке.</p></article>
+      <article class="feature"><b>Мост</b><p>Символ связи, границы и движения. Визуально сильнее, чем очередная абстрактная клякса.</p></article>
+      <article class="feature"><b>Район</b><p>Панельки, дворы, набережная, Восточный и Амур. Локальная идентичность, которую можно носить.</p></article>
+    </section>
+
+    <footer class="footer">
+      <div>KERN AMR / FAR EAST GARMENTS</div>
+      <div>AMUR REGION / 28 / BUILT TO LAST</div>
+    </footer>
+  </div>
+
+  <script>
+    const drops = [
+      {
+        name: 'Дворовый блок',
+        desc: 'Граффити KERN AMR, панельки, код 28.',
+        shirt: '#101010',
+        template: 'block'
+      },
+      {
+        name: 'Амурский мост',
+        desc: 'Арка моста, волны Амура, синий акцент.',
+        shirt: '#151515',
+        template: 'bridge'
+      },
+      {
+        name: 'Правый рукав',
+        desc: 'Мини-вышивка AMR / 28 и Far East mark.',
+        shirt: '#f3eee6',
+        template: 'sleeve'
+      }
+    ];
+
+    const print = document.getElementById('print');
+    const shirt = document.getElementById('shirt');
+    const card = document.getElementById('shirtCard');
+    const slideName = document.getElementById('slideName');
+    const slideDesc = document.getElementById('slideDesc');
+    const dots = document.getElementById('dots');
+    const soundBtn = document.getElementById('soundBtn');
+
+    let index = 0;
+    let audioCtx = null;
+    let soundOn = false;
+    let scrollTimer = 0;
+
+    function initAudio() {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+    }
+
+    function tickSound(freq = 180, time = .055, type = 'sawtooth') {
+      if (!soundOn) return;
+      initAudio();
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.type = type;
+      o.frequency.setValueAtTime(freq, audioCtx.currentTime);
+      o.frequency.exponentialRampToValueAtTime(freq * 1.7, audioCtx.currentTime + time);
+      g.gain.setValueAtTime(.0001, audioCtx.currentTime);
+      g.gain.exponentialRampToValueAtTime(.09, audioCtx.currentTime + .01);
+      g.gain.exponentialRampToValueAtTime(.0001, audioCtx.currentTime + time);
+      o.connect(g).connect(audioCtx.destination);
+      o.start();
+      o.stop(audioCtx.currentTime + time + .02);
+    }
+
+    soundBtn.addEventListener('click', () => {
+      soundOn = !soundOn;
+      initAudio();
+      soundBtn.textContent = soundOn ? 'SOUND ON' : 'SOUND OFF';
+      soundBtn.classList.toggle('active', soundOn);
+      tickSound(260, .08, 'square');
+    });
+
+    function bridgeSvg() {
+      return '<svg class="bridge-line" viewBox="0 0 260 80" aria-hidden="true"><path d="M10 62 C72 -5 188 -5 250 62" fill="none" stroke="#f3eee6" stroke-width="7"/><path d="M10 62 L250 62 M40 62 L73 30 M73 62 L112 17 M112 62 L152 16 M152 62 L190 29 M190 62 L225 42" stroke="#f3eee6" stroke-width="4"/></svg>';
+    }
+    function wavesSvg() {
+      return '<svg class="waves" viewBox="0 0 260 42" aria-hidden="true"><path d="M0 10 C45 0 80 20 130 10 S215 0 260 10" fill="none" stroke="#2e5f83" stroke-width="5"/><path d="M0 24 C45 14 80 34 130 24 S215 14 260 24" fill="none" stroke="#2e5f83" stroke-width="5"/></svg>';
+    }
+
+    function render() {
+      const item = drops[index];
+      shirt.style.setProperty('--shirt', item.shirt);
+      slideName.textContent = item.name;
+      slideDesc.textContent = item.desc;
+
+      if (item.template === 'block') {
+        print.innerHTML = '<div class="num">28</div><div><div class="kern">KERN</div><div class="amr">AMR</div><div class="tag">AMUR REGION / 28</div></div>';
+      }
+      if (item.template === 'bridge') {
+        print.innerHTML = '<div><div class="kern">KERN</div>' + bridgeSvg() + '<div class="amr">AMR</div>' + wavesSvg() + '<div class="tag">АМУРСКИЙ МОСТ</div></div>';
+      }
+      if (item.template === 'sleeve') {
+        print.innerHTML = '<div><div class="kern" style="color:#111">KERN</div><div class="amr">AMR</div><div class="tag" style="color:#111">RIGHT SLEEVE</div><div class="tag" style="color:#2e5f83">FAR EAST GARMENTS</div></div><div class="sleeve-mark" style="color:#f3eee6">AMR / 28</div>';
+      }
+
+      [...dots.children].forEach((dot, i) => dot.classList.toggle('active', i === index));
+    }
+
+    function go(nextIndex) {
+      card.classList.add('is-turning');
+      tickSound(170 + Math.random() * 90, .07, 'triangle');
+      setTimeout(() => {
+        index = (nextIndex + drops.length) % drops.length;
+        render();
+        card.classList.remove('is-turning');
+      }, 260);
+    }
+
+    drops.forEach((_, i) => {
+      const d = document.createElement('span');
+      d.className = 'dot';
+      d.addEventListener('click', () => go(i));
+      dots.appendChild(d);
+    });
+
+    document.getElementById('next').addEventListener('click', () => go(index + 1));
+    document.getElementById('prev').addEventListener('click', () => go(index - 1));
+    document.getElementById('randomBtn').addEventListener('click', () => {
+      let next = Math.floor(Math.random() * drops.length);
+      if (next === index) next = (next + 1) % drops.length;
+      document.getElementById('lookbook').scrollIntoView({behavior: 'smooth'});
+      go(next);
+    });
+
+    let startX = 0;
+    document.getElementById('slider').addEventListener('touchstart', e => startX = e.changedTouches[0].clientX, {passive:true});
+    document.getElementById('slider').addEventListener('touchend', e => {
+      const dx = e.changedTouches[0].clientX - startX;
+      if (Math.abs(dx) > 48) go(dx < 0 ? index + 1 : index - 1);
+    }, {passive:true});
+
+    window.addEventListener('wheel', () => {
+      const now = Date.now();
+      if (now - scrollTimer > 420) {
+        tickSound(90, .035, 'sine');
+        scrollTimer = now;
+      }
+    }, {passive:true});
+
+    const io = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) entry.target.classList.add('show');
+      });
+    }, {threshold: .2});
+    document.querySelectorAll('.feature').forEach(el => io.observe(el));
+
+    window.addEventListener('pointermove', e => {
+      const x = (e.clientX / window.innerWidth - .5) * 14;
+      const y = (e.clientY / window.innerHeight - .5) * 14;
+      document.querySelectorAll('.badge').forEach((b, i) => {
+        b.style.marginLeft = `${x * (i + 1) * .25}px`;
+        b.style.marginTop = `${y * (i + 1) * .25}px`;
+      });
+    });
+
+    render();
+  </script>
+</body>
+</html>
