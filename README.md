@@ -1,23 +1,35 @@
-# KERN AMR
+# OpenClaw on Amvera + Qwen
 
-Одностраничный сайт-лукбук бренда KERN AMR.
+Этот репозиторий подготовлен для запуска OpenClaw Gateway в Amvera Cloud без ПК.
 
-## Что внутри
+## Что уже настроено
 
-- `index.html` — полностью самодостаточный сайт.
-- Встроенные CSS-анимации.
-- Встроенная логика переключения дизайнов.
-- Звуки переключения и прокрутки через Web Audio API без внешних аудиофайлов.
-- GitHub Pages workflow: `.github/workflows/pages.yml`.
+- официальный Docker-образ `ghcr.io/openclaw/openclaw:latest`;
+- OpenClaw Gateway на порту `18789`;
+- постоянное хранилище Amvera в `/data`;
+- Qwen подключён напрямую через OpenAI-compatible endpoint Alibaba DashScope;
+- модель по умолчанию: `qwen3.5-plus`;
+- секреты не хранятся в GitHub.
 
-## Ссылка на сайт
+## Что добавить в Amvera
 
-После активации GitHub Pages сайт должен быть доступен по адресу:
+В разделе **Переменные / Секреты** создай:
 
-https://wwgame28.github.io/KERN-/
+- `QWEN_API_KEY` — API-ключ Qwen/Alibaba Model Studio;
+- `OPENCLAW_GATEWAY_TOKEN` — длинный случайный токен для доступа к Gateway.
 
-Если ссылка показывает 404, зайдите в:
+После добавления переменных перезапусти приложение.
 
-Settings → Pages → Source → GitHub Actions
+## Amvera
 
-После этого запустите workflow вручную или сделайте новый commit.
+Amvera автоматически прочитает `amvera.yml`, соберёт `Dockerfile`, подключит `/data` как постоянное хранилище и направит сервис на порт `18789`.
+
+## Файлы
+
+- `Dockerfile` — обёртка над официальным OpenClaw image;
+- `start.sh` — создаёт начальную конфигурацию при первом запуске и запускает Gateway;
+- `openclaw.json` — конфигурация Qwen;
+- `amvera.yml` — конфигурация деплоя Amvera;
+- `.env.example` — только названия нужных секретов.
+
+Исходный проект KERN не уничтожен безвозвратно: его история остаётся в предыдущих Git-коммитах.
