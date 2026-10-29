@@ -23,6 +23,9 @@
 <body>
 <canvas id="game" tabindex="0"></canvas>
 <div id="safe"></div>
+<!-- Sprites/sounds: Kenney.nl (CC0), font: Russo One (OFL) — see assets/CREDITS.md.
+     If this file is missing the game falls back to procedural graphics and synth audio. -->
+<script src="assets/bundle.js"></script>
 <script>
 'use strict';
 /* ==========================================================================
@@ -85,23 +88,17 @@ const PAL = {
   primary: '#ffd23f', accent: '#4cc9f0', good: '#3ddc97', danger: '#ff4d6d',
   text: '#f4f4ff', muted: '#8a8fc7', coin: '#ffd23f',
 };
-const ENEMY_COL = { grunt: '#ff4d6d', runner: '#ff9f1c', brute: '#e040fb', boss: '#ff2e63' };
+// Enemy hull colours follow the Kenney sprites (used for glows and explosions)
+const ENEMY_COL = { grunt: '#ff8a3d', runner: '#9be15d', brute: '#3fc1e8', boss: '#b48cff' };
+const ENEMY_SPR = { grunt: 'enemyRed', runner: 'enemyGreen', brute: 'enemyBlue', boss: 'enemyBlack' };
 
-// Each level: colour + core shape (polygon sides, inner<1 makes it a star).
-const LEVELS = [
-  { color: '#8fd3ff', sides: 4,  inner: 1    },  // 1  square
-  { color: '#3ddc97', sides: 5,  inner: 1    },  // 2  pentagon
-  { color: '#ffd23f', sides: 6,  inner: 1    },  // 3  hexagon
-  { color: '#ff9f1c', sides: 4,  inner: 0.45 },  // 4  4-point star
-  { color: '#ff5c8a', sides: 8,  inner: 1    },  // 5  octagon
-  { color: '#c77dff', sides: 5,  inner: 0.45 },  // 6  5-point star
-  { color: '#4cc9f0', sides: 6,  inner: 0.5  },  // 7
-  { color: '#f72585', sides: 8,  inner: 0.55 },  // 8
-  { color: '#9bf6ff', sides: 7,  inner: 0.45 },  // 9
-  { color: '#fdffb6', sides: 10, inner: 0.6  },  // 10
-  { color: '#ff6b35', sides: 12, inner: 0.7  },  // 11
-  { color: '#ffffff', sides: 16, inner: 0.75 },  // 12
-];
+// Evolution: 3 hulls × 4 colours = 12 levels (Kenney "Space Shooter Redux" player ships).
+// sides/inner describe the procedural fallback shape used when the sprite atlas is missing.
+const SHIP_COL = { blue: '#4cc9f0', green: '#8be04e', orange: '#ffa53a', red: '#ff5a5a' };
+const LEVELS = [1, 2, 3].flatMap(hull => ['blue', 'green', 'orange', 'red'].map((c, i) => ({
+  ship: `ship${hull}_${c}`, beam: c === 'orange' ? 'red' : c, color: SHIP_COL[c], tier: hull,
+  sides: [4, 5, 6, 8][i] + (hull - 1) * 2, inner: hull === 1 ? 1 : 0.5,
+})));
 
 /* -------------------------------------------------------------------------- */
 /* 3. LOCALISATION (Yandex Games needs at least RU + EN)                      */
@@ -118,6 +115,7 @@ const I18N = {
     retreat: 'Fall back to wave', welcomeT: 'Welcome back!', welcomeS: 'Your bastion earned while you were away',
     collect: 'Collect', triple: 'Collect x3', adTitle: 'Advertisement', adMock: 'mock — Yandex SDK not loaded',
     noSpace: 'No free cell!', noCoins: 'Not enough coins', maxed: 'MAX LEVEL',
+    credits: 'Art & sound: Kenney.nl (CC0) · Font: Russo One (OFL)',
     names: ['Spark', 'Bolt', 'Prism', 'Pulse', 'Nova', 'Flux', 'Quasar', 'Pulsar', 'Nebula', 'Vortex', 'Titan', 'Genesis'],
   },
   ru: {
@@ -131,6 +129,7 @@ const I18N = {
     retreat: 'Отступить к волне', welcomeT: 'С возвращением!', welcomeS: 'Бастион заработал, пока тебя не было',
     collect: 'Забрать', triple: 'Забрать x3', adTitle: 'Реклама', adMock: 'заглушка — Yandex SDK не загружен',
     noSpace: 'Нет свободной клетки!', noCoins: 'Не хватает монет', maxed: 'МАКС. УРОВЕНЬ',
+    credits: 'Графика и звук: Kenney.nl (CC0) · Шрифт: Russo One (OFL)',
     names: ['Искра', 'Разряд', 'Призма', 'Импульс', 'Нова', 'Поток', 'Квазар', 'Пульсар', 'Туманность', 'Вихрь', 'Титан', 'Генезис'],
   },
 };
@@ -284,7 +283,7 @@ function maybeInterstitial() {
 /* -------------------------------------------------------------------------- */
 const SFX_GAP = { shoot: 0.07, kill: 0.04, coin: 0.06, hit: 0.05, pick: 0.05 };
 const Sfx = {
-  ctx: null, out: null, muted: false, ducked: false, last: Object.create(null), noiseBuf: null,
+  ctx: null, out: null, muted: false, ducked: false, last: Object.create(null), noiseBuf: null, buf: {},
   unlock() {
     if (!this.ctx) {
       const AC = window.AudioContext || window.webkitAudioContext;
@@ -293,8 +292,30 @@ const Sfx = {
       this.out = this.ctx.createGain();
       this.out.connect(this.ctx.destination);
       this.apply();
+      this.loadSamples();
     }
     if (this.ctx.state === 'suspended' && !document.hidden) this.ctx.resume();
+  },
+  /** Decode the Kenney MP3s embedded in assets/bundle.js (needs the context, so after a gesture) */
+  loadSamples() {
+    const src = window.MB_ASSETS?.sounds || {};
+    for (const [name, uri] of Object.entries(src)) {
+      const bin = atob(uri.slice(uri.indexOf(',') + 1)), bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      this.ctx.decodeAudioData(bytes.buffer).then(b => { this.buf[name] = b; }, () => { /* keep synth fallback */ });
+    }
+  },
+  /** Play a decoded sample; returns false so callers can fall back to the synth */
+  sample(name, vol = 1, rate = 1) {
+    const b = this.buf[name];
+    if (!b) return false;
+    const s = this.ctx.createBufferSource(), g = this.ctx.createGain();
+    s.buffer = b;
+    s.playbackRate.value = rate * (0.95 + Math.random() * 0.1);   // ±5% pitch variety
+    g.gain.value = vol;
+    s.connect(g).connect(this.out);
+    s.start();
+    return true;
   },
   apply() { if (this.out) this.out.gain.value = this.muted || this.ducked ? 0 : 0.55; },
   setMuted(m) { this.muted = m; this.apply(); },
@@ -334,25 +355,30 @@ const Sfx = {
     const now = this.ctx.currentTime, gap = SFX_GAP[name] || 0;
     if (gap && now - (this.last[name] || 0) < gap) return;   // throttle spammy sounds
     this.last[name] = now;
+    // Each case: Kenney sample first, synthesized fallback second
     switch (name) {
-      case 'shoot': this.tone(900 - p * 40, 0.06, 'square', 0.025, 0.45); break;
-      case 'kill':  this.tone(520, 0.09, 'triangle', 0.12, 1.9); this.noise(0.08, 0.06, 3000); break;
-      case 'boom':  this.noise(0.5, 0.35, 900); this.tone(90, 0.5, 'sawtooth', 0.15, 0.4); break;
-      case 'coin':  this.tone(1320, 0.07, 'sine', 0.05); break;
-      case 'buy':   this.tone(620, 0.09, 'square', 0.07, 1.6); break;
-      case 'pick':  this.tone(440, 0.05, 'sine', 0.08, 1.3); break;
-      case 'drop':  this.tone(330, 0.06, 'sine', 0.08, 0.8); break;
+      case 'shoot': this.sample(p >= 7 ? 'shoot2' : 'shoot', 0.16, 1.15 - p * 0.025) || this.tone(900 - p * 40, 0.06, 'square', 0.025, 0.45); break;
+      case 'kill':  this.sample('kill', 0.45, 1.2) || (this.tone(520, 0.09, 'triangle', 0.12, 1.9), this.noise(0.08, 0.06, 3000)); break;
+      case 'boom':  this.sample('boom', 0.9, 0.8); this.noise(0.5, 0.3, 700); this.tone(90, 0.5, 'sawtooth', 0.12, 0.4); break;
+      case 'coin':  this.sample('coin', 0.2, 1.5) || this.tone(1320, 0.07, 'sine', 0.05); break;
+      case 'buy':   this.sample('buy', 0.6) || this.tone(620, 0.09, 'square', 0.07, 1.6); break;
+      case 'pick':  this.sample('pick', 0.7) || this.tone(440, 0.05, 'sine', 0.08, 1.3); break;
+      case 'drop':  this.sample('drop', 0.7) || this.tone(330, 0.06, 'sine', 0.08, 0.8); break;
+      case 'click': this.sample('click', 0.6) || this.tone(1000, 0.035, 'sine', 0.05); break;
+      case 'error': this.sample('error', 0.5) || this.tone(170, 0.13, 'square', 0.07, 0.8); break;
       case 'merge':
-        [523, 659, 784, 1047].forEach((f, i) => this.tone(f * (1 + p * 0.06), 0.14, 'triangle', 0.13, 1, i * 0.055));
+        this.sample('merge', 0.7, 0.9 + p * 0.05) ||
+          [523, 659, 784, 1047].forEach((f, i) => this.tone(f * (1 + p * 0.06), 0.14, 'triangle', 0.13, 1, i * 0.055));
         break;
       case 'unlock':
-        [392, 523, 659, 784, 1047].forEach((f, i) => this.tone(f, 0.22, 'square', 0.07, 1, i * 0.08));
+        this.sample('unlock', 0.6) || [392, 523, 659, 784, 1047].forEach((f, i) => this.tone(f, 0.22, 'square', 0.07, 1, i * 0.08));
         break;
-      case 'hurt':  this.tone(140, 0.28, 'sawtooth', 0.18, 0.5); this.noise(0.2, 0.18, 700); break;
-      case 'error': this.tone(170, 0.13, 'square', 0.07, 0.8); break;
-      case 'wave':  this.tone(392, 0.16, 'triangle', 0.12); this.tone(587, 0.22, 'triangle', 0.12, 1, 0.12); break;
-      case 'click': this.tone(1000, 0.035, 'sine', 0.05); break;
-      case 'lose':  [392, 330, 262, 196].forEach((f, i) => this.tone(f, 0.25, 'triangle', 0.12, 1, i * 0.13)); break;
+      case 'hurt':  this.sample('hurt', 0.8) || (this.tone(140, 0.28, 'sawtooth', 0.18, 0.5), this.noise(0.2, 0.18, 700)); break;
+      case 'wave':  this.sample(p ? 'bosswave' : 'wave', 0.6) || (this.tone(392, 0.16, 'triangle', 0.12), this.tone(587, 0.22, 'triangle', 0.12, 1, 0.12)); break;
+      case 'cleared': this.sample('cleared', 0.45) || this.tone(784, 0.15, 'triangle', 0.1); break;
+      case 'rage':  this.sample('rage', 0.8) || this.tone(300, 0.4, 'sawtooth', 0.12, 2.5); break;
+      case 'reward': this.sample('reward', 0.7) || this.tone(660, 0.2, 'triangle', 0.12, 2); break;
+      case 'lose':  this.sample('lose', 0.8) || [392, 330, 262, 196].forEach((f, i) => this.tone(f, 0.25, 'triangle', 0.12, 1, i * 0.13)); break;
     }
   },
 };
@@ -447,9 +473,9 @@ function makePool(n, factory) {
     clear() { for (const it of items) it.alive = false; },
   };
 }
-const enemies = makePool(CONFIG.pools.enemies, () => ({ alive: false, type: 'grunt', x: 0, y: 0, px: 0, py: 0, vx: 0, vy: 0, r: 10, hp: 1, maxHp: 1, speed: 0, coin: 1, dmg: 1, flash: 0, wob: 0, wobS: 1, drift: 0 }));
+const enemies = makePool(CONFIG.pools.enemies, () => ({ alive: false, type: 'grunt', spr: '', x: 0, y: 0, px: 0, py: 0, vx: 0, vy: 0, r: 10, hp: 1, maxHp: 1, speed: 0, coin: 1, dmg: 1, flash: 0, wob: 0, wobS: 1, drift: 0 }));
 const bullets = makePool(CONFIG.pools.bullets, () => ({ alive: false, x: 0, y: 0, px: 0, py: 0, vx: 0, vy: 0, r: 4, dmg: 1, lvl: 1, splash: 0, life: 0 }));
-const parts = makePool(CONFIG.pools.particles, () => ({ alive: false, kind: 0, x: 0, y: 0, vx: 0, vy: 0, x0: 0, y0: 0, life: 0, max: 1, size: 2, r1: 0, color: '#fff' }));
+const parts = makePool(CONFIG.pools.particles, () => ({ alive: false, kind: 0, x: 0, y: 0, vx: 0, vy: 0, x0: 0, y0: 0, life: 0, max: 1, size: 2, r1: 0, rot: 0, color: '#fff', tex: '' }));
 const floats = makePool(CONFIG.pools.floats, () => ({ alive: false, x: 0, y: 0, text: '', color: '#fff', size: 18, life: 0, max: 1 }));
 
 /* -------------------------------------------------------------------------- */
@@ -536,7 +562,27 @@ function burst(x, y, color, n, speed, size, life) {
 }
 function ring(x, y, color, r1, life, width = 4) {
   const p = parts.spawn(); if (!p) return;
-  p.kind = 1; p.x = x; p.y = y; p.r1 = r1; p.life = p.max = life; p.size = width; p.color = color;
+  p.kind = 1; p.x = x; p.y = y; p.vx = p.vy = 0; p.r1 = r1; p.life = p.max = life; p.size = width; p.color = color;
+}
+/** Textured additive flash from the Particle Pack (tinted by `color`, or as-is when color is '') */
+function fx(tex, x, y, color, size, grow, life, rot = Math.random() * TAU) {
+  if (!Art.has(tex)) return;
+  const p = parts.spawn(); if (!p) return;
+  p.kind = 4; p.tex = tex; p.x = x; p.y = y; p.vx = p.vy = 0; p.size = size; p.r1 = grow;
+  p.life = p.max = life; p.color = color; p.rot = rot;
+}
+function smoke(x, y, size, life) {
+  if (!Art.has('p_smoke')) return;
+  const p = parts.spawn(); if (!p) return;
+  const a = Math.random() * TAU, v = 20 + Math.random() * 40;
+  p.kind = 3; p.tex = 'p_smoke'; p.x = x; p.y = y; p.vx = Math.cos(a) * v; p.vy = Math.sin(a) * v - 25;
+  p.size = size; p.r1 = 2.2; p.life = p.max = life; p.color = '#9aa0c8'; p.rot = Math.random() * TAU;
+}
+function explode(x, y, color, scale) {
+  fx('p_light', x, y, color, 110 * scale, 1.5, 0.3);
+  fx('p_scorch', x, y, color, 70 * scale, 1.9, 0.45);
+  fx('p_star', x, y, '#ffffff', 60 * scale, 0.4, 0.18);
+  for (let i = 0; i < 1 + scale * 2; i++) smoke(x + (Math.random() - 0.5) * 20 * scale, y + (Math.random() - 0.5) * 20 * scale, 34 * scale, 0.9);
 }
 function coinFly(x, y, n) {
   for (let i = 0; i < n; i++) {
@@ -559,7 +605,7 @@ function updateParticles(dt) {
       p.x = lerp(p.x0, L.coinIcon.x, e) + Math.sin(t * Math.PI) * 30;
       p.y = lerp(p.y0, L.coinIcon.y, e);
       if (p.life <= 0) { world.coinPulse = 1; Sfx.play('coin'); }
-    } else if (p.kind === 0) {
+    } else {
       p.x += p.vx * dt; p.y += p.vy * dt;
       const fr = Math.exp(-4 * dt); p.vx *= fr; p.vy *= fr;
     }
@@ -578,6 +624,7 @@ function placeTurret(idx, lvl) {
   c.lvl = lvl; c.pop = 1; c.cd = 0.25; c.ang = -Math.PI / 2;
   burst(c.x, c.y, LEVELS[lvl - 1].color, 14, 220, 4, 0.45);
   ring(c.x, c.y, LEVELS[lvl - 1].color, 60, 0.35, 3);
+  fx('p_star', c.x, c.y, LEVELS[lvl - 1].color, 110, 0.5, 0.35, 0);
   registerLevel(lvl);
   world.dirty = true;
 }
@@ -618,6 +665,8 @@ function tryDrop(from, to) {
     burst(b.x, b.y, col, 26, 320, 5, 0.6);
     ring(b.x, b.y, col, 90, 0.45, 5);
     ring(b.x, b.y, '#ffffff', 55, 0.3, 2);
+    fx('p_magic', b.x, b.y, col, 150, 1.4, 0.6);
+    fx('p_light', b.x, b.y, col, 170, 1.2, 0.4);
     floatText(b.x, b.y - 46, `${T('lvl')} ${b.lvl}`, col, 22);
     shake(3, 0.12);
     Sfx.play('merge', b.lvl);
@@ -645,7 +694,7 @@ function adFreeTurret() {
     if (i < 0) return;
     placeTurret(i, CONFIG.ads.freeLevel);
     world.adCd = CONFIG.ads.rewardCooldown;
-    Sfx.play('merge', 2);
+    Sfx.play('reward');
     saveGame();
   });
 }
@@ -677,13 +726,22 @@ function startWave() {
   if (n % CONFIG.wave.bossEvery === 0) banner(T('boss'), PAL.danger, `${T('wave')} ${n}`);
   else if (n % CONFIG.wave.eliteEvery === 0) banner(`${T('wave')} ${n}`, ENEMY_COL.brute, T('elite'));
   else banner(`${T('wave')} ${n}`, PAL.text);
-  Sfx.play('wave');
+  Sfx.play('wave', n % CONFIG.wave.bossEvery === 0 ? 1 : 0);
+}
+
+/** Kenney enemy hull: colour by type, shape rotates as waves progress so the sky keeps changing */
+function enemySprite(type, wave) {
+  const shape = type === 'brute' ? 4
+    : type === 'boss' ? 4 + (Math.floor(wave / CONFIG.wave.bossEvery) % 2)
+    : type === 'runner' ? [2, 5, 1][Math.floor((wave - 1) / 4) % 3]
+    : [1, 3, 2, 5][Math.floor((wave - 1) / 3) % 4];
+  return ENEMY_SPR[type] + shape;
 }
 
 function spawnEnemy(type) {
   const e = enemies.spawn(); if (!e) return;
   const d = CONFIG.enemies[type], w = world;
-  e.type = type; e.r = d.r;
+  e.type = type; e.r = d.r; e.spr = enemySprite(type, w.wave);
   e.maxHp = e.hp = hpOf(w.wave) * d.hp;
   e.speed = d.speed; e.dmg = d.dmg;
   e.coin = Math.max(1, Math.round(coinOf(w.wave) * d.coin));
@@ -701,6 +759,7 @@ function waveCleared() {
   w.coins += bonus;
   floatText(L.W / 2, L.fieldTop + L.fieldH * 0.45, `${T('cleared')}  +${fmt(bonus)}`, PAL.good, 26);
   coinFly(L.W / 2, L.fieldTop + L.fieldH * 0.45, 6);
+  Sfx.play('cleared');
   w.wave++;
   w.best = Math.max(w.best, w.wave);
   w.rage = false;
@@ -788,6 +847,7 @@ function updateBullets(dt) {
       if (!e.alive) continue;
       const rr = e.r + b.r, dx = e.x - b.x, dy = e.y - b.y;
       if (dx * dx + dy * dy <= rr * rr) {
+        fx('hit_' + LEVELS[b.lvl - 1].beam, b.x, b.y, '', 16 + b.lvl * 1.5, 1.6, 0.12);
         hitEnemy(e, b.dmg, true);
         if (b.splash) splashDamage(b.x, b.y, b.splash, b.dmg * CONFIG.turret.splashFrac, e, LEVELS[b.lvl - 1].color);
         b.alive = false;
@@ -819,6 +879,7 @@ function killEnemy(e) {
   w.coins += e.coin;
   burst(e.x, e.y, col, big ? 60 : 10 + e.r * 0.6, big ? 420 : 260, big ? 7 : 4, big ? 0.9 : 0.5);
   ring(e.x, e.y, col, e.r * 2.4, 0.3, big ? 6 : 3);
+  explode(e.x, e.y, col, big ? 2.6 : e.r / 18);
   floatText(e.x, e.y - e.r, '+' + fmt(e.coin), PAL.coin, big ? 30 : 18);
   coinFly(e.x, e.y, big ? 8 : 1);
   if (big) { shake(12, 0.45); w.hitstop = 0.09; Sfx.play('boom'); }
@@ -832,6 +893,7 @@ function breach(e) {
   w.hurt = 0.4;
   shake(e.type === 'boss' ? 14 : 7, 0.3);
   burst(e.x, L.baseY, PAL.danger, 22, 300, 5, 0.6);
+  explode(e.x, L.baseY, PAL.danger, 1.2);
   floatText(e.x, L.baseY - 24, '-' + e.dmg, PAL.danger, 24);
   Sfx.play('hurt');
   if (w.baseHp <= 0) defeat();
@@ -875,6 +937,7 @@ function revive() {
   startWave();
   world.rage = true;
   banner(T('rage'), PAL.danger, `${T('wave')} ${world.wave}`);
+  Sfx.play('rage');
   setState('play');
 }
 
@@ -968,6 +1031,20 @@ function modal(def) {
 }
 
 const States = {
+  loading: {
+    p: 0,
+    update(dt) { world.time += dt; },
+    render() {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.fillStyle = '#05060f'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+      setUI();
+      ctx.fillStyle = PAL.bg; ctx.fillRect(0, 0, L.W, L.H);
+      txt(ctx, 'MERGE BASTION', L.W / 2, L.H * 0.42, 44, PAL.text, { weight: 900, maxW: 480 });
+      rr(ctx, L.W / 2 - 150, L.H * 0.42 + 46, 300, 12, 6); ctx.fillStyle = PAL.surface2; ctx.fill();
+      rr(ctx, L.W / 2 - 150, L.H * 0.42 + 46, 300 * Math.max(0.05, this.p), 12, 6); ctx.fillStyle = PAL.primary; ctx.fill();
+    },
+  },
+
   menu: {
     t: 0,
     enter() { this.t = 0; },
@@ -987,7 +1064,7 @@ const States = {
     enter() {
       this.t = 0;
       const r = (dy) => () => ({ x: L.W / 2 - 170, y: L.H * 0.44 + dy, w: 340, h: 70 });
-      const take = mult => { world.coins += pendingIdle * mult; coinFly(L.W / 2, L.H * 0.4, 10); pendingIdle = 0; saveGame(); setState('play'); };
+      const take = mult => { world.coins += pendingIdle * mult; coinFly(L.W / 2, L.H * 0.4, 10); Sfx.play('reward'); pendingIdle = 0; saveGame(); setState('play'); };
       this.btns = [
         Object.assign(button(r(40), () => showRewardedVideo(() => take(CONFIG.idle.adMult))), { label: T('triple'), ad: true, col: [PAL.good, '#1f9e6a'] }),
         Object.assign(button(r(126), () => take(1)), { label: T('collect'), col: [PAL.surface2, '#151a40'] }),
@@ -1103,7 +1180,108 @@ const States = {
 /* -------------------------------------------------------------------------- */
 /* 14. RENDERING                                                              */
 /* -------------------------------------------------------------------------- */
-const FONT = '"Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+const FONT_FALLBACK = '"Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+let FONT = FONT_FALLBACK;
+// Russo One has a single weight: ask for 400 to avoid faux-bold smearing
+const fontStr = (size, weight) => (Art.font ? `${size}px ${FONT}` : `${weight} ${size}px ${FONT}`);
+
+/* ---- Art: sprite atlas from assets/bundle.js (Kenney CC0) ---------------- */
+const Art = {
+  ok: false, font: false, img: null, spr: {}, tints: new Map(), sils: new Map(),
+  /** Loads atlas + font. Resolves false (procedural fallback) if anything is missing. */
+  load(onProgress) {
+    const A = window.MB_ASSETS;
+    if (!A) return Promise.resolve(false);
+    const steps = [
+      new Promise(res => {
+        const img = new Image();
+        img.onload = () => { this.img = img; this.spr = A.sprites; this.ok = true; res(); };
+        img.onerror = () => res();
+        img.src = A.atlas;
+      }),
+      (async () => {
+        try {
+          const bin = atob(A.font.slice(A.font.indexOf(',') + 1)), bytes = new Uint8Array(bin.length);
+          for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+          const face = new FontFace('Russo One', bytes.buffer);
+          await face.load();
+          document.fonts.add(face);
+          FONT = `"Russo One", ${FONT_FALLBACK}`;
+          this.font = true;
+        } catch (e) { /* system font fallback */ }
+      })(),
+    ];
+    let done = 0;
+    steps.forEach(p => p.then(() => onProgress?.(++done / steps.length)));
+    return Promise.all(steps).then(() => this.ok);
+  },
+  has(name) { return this.ok && !!this.spr[name]; },
+  /** Size of a sprite scaled to width w (keeps aspect) */
+  h(name, w) { const r = this.spr[name]; return r ? w * r[3] / r[2] : w; },
+  /** Off-screen copy of a sprite (optionally colour-multiplied or flattened to white) */
+  variant(name, cache, key, paint) {
+    let c = cache.get(key);
+    if (c) return c;
+    const r = this.spr[name];
+    c = document.createElement('canvas'); c.width = r[2]; c.height = r[3];
+    const g = c.getContext('2d');
+    g.drawImage(this.img, r[0], r[1], r[2], r[3], 0, 0, r[2], r[3]);
+    paint(g, r[2], r[3]);
+    cache.set(key, c);
+    return c;
+  },
+  tinted(name, color) {
+    return this.variant(name, this.tints, name + color, (g, w, h) => {
+      g.globalCompositeOperation = 'multiply'; g.fillStyle = color; g.fillRect(0, 0, w, h);
+      g.globalCompositeOperation = 'destination-in';
+      const r = this.spr[name]; g.drawImage(this.img, r[0], r[1], r[2], r[3], 0, 0, w, h);
+    });
+  },
+  white(name) {
+    return this.variant(name, this.sils, name, (g, w, h) => {
+      g.globalCompositeOperation = 'source-in'; g.fillStyle = '#ffffff'; g.fillRect(0, 0, w, h);
+    });
+  },
+};
+
+/** Draw a sprite centred at (x, y), size w×h, optional rotation; `src` may be a cached variant */
+function spr(g, name, x, y, w, h, rot = 0, src = null) {
+  const r = Art.spr[name];
+  if (!r) return;
+  const img = src || Art.img, sx = src ? 0 : r[0], sy = src ? 0 : r[1];
+  if (rot) {
+    g.save(); g.translate(x, y); g.rotate(rot);
+    g.drawImage(img, sx, sy, r[2], r[3], -w / 2, -h / 2, w, h);
+    g.restore();
+  } else g.drawImage(img, sx, sy, r[2], r[3], x - w / 2, y - h / 2, w, h);
+}
+const sprTint = (g, name, color, x, y, w, h, rot = 0) => spr(g, name, x, y, w, h, rot, Art.tinted(name, color));
+
+/** 9-slice a square panel sprite (corners keep `b` px) */
+function nine(g, name, x, y, w, h, b = 10) {
+  const r = Art.spr[name];
+  if (!r) return;
+  const [sx, sy, sw, sh] = r, xs = [0, b, sw - b, sw], ys = [0, b, sh - b, sh];
+  const dx = [x, x + b, x + w - b, x + w], dy = [y, y + b, y + h - b, y + h];
+  for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) {
+    g.drawImage(Art.img, sx + xs[i], sy + ys[j], xs[i + 1] - xs[i], ys[j + 1] - ys[j],
+      dx[i], dy[j], dx[i + 1] - dx[i], dy[j + 1] - dy[j]);
+  }
+}
+
+/** Kenney 3-piece horizontal bar: shadow track + coloured fill (k = 0..1) */
+function bar(g, x, y, w, h, k, color) {
+  const cap = h * 0.6;
+  const piece = (pre, x0, ww) => {
+    if (ww <= 0) return;
+    const capW = Math.min(cap, ww / 2);
+    spr(g, pre + '_l', x0 + capW / 2, y + h / 2, capW, h);
+    if (ww - capW * 2 > 0) spr(g, pre + '_m', x0 + ww / 2, y + h / 2, ww - capW * 2 + 1, h);
+    spr(g, pre + '_r', x0 + ww - capW / 2, y + h / 2, capW, h);
+  };
+  piece('bar_bg', x, w);
+  if (k > 0) piece('bar_' + color, x, Math.max(cap * 1.2, w * k));
+}
 
 function rr(g, x, y, w, h, r) {        // rounded rect path (no reliance on ctx.roundRect)
   r = Math.max(0, Math.min(r, w / 2, h / 2));
@@ -1126,10 +1304,10 @@ function poly(g, n, r, inner, rot) {    // regular polygon, or star when inner <
 }
 function txt(g, s, x, y, size, color, o = {}) {
   const weight = o.weight || 800;
-  g.font = `${weight} ${size}px ${FONT}`;
+  g.font = fontStr(size, weight);
   if (o.maxW) {
     const w = g.measureText(s).width;
-    if (w > o.maxW) g.font = `${weight} ${Math.max(8, (size * o.maxW) / w)}px ${FONT}`;
+    if (w > o.maxW) g.font = fontStr(Math.max(8, (size * o.maxW) / w), weight);
   }
   g.textAlign = o.align || 'center';
   g.textBaseline = 'middle';
@@ -1138,6 +1316,7 @@ function txt(g, s, x, y, size, color, o = {}) {
   g.fillText(s, x, y);
 }
 function coinIcon(g, x, y, r) {
+  if (Art.has('coin')) return spr(g, 'coin', x, y, r * 2.1, r * 2.1);
   g.fillStyle = PAL.coin; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill();
   g.strokeStyle = '#c98a00'; g.lineWidth = r * 0.22; g.beginPath(); g.arc(x, y, r * 0.58, 0, TAU); g.stroke();
 }
@@ -1162,8 +1341,55 @@ function glow(x, y, r, color, a) {
   ctx.globalAlpha = prev;
 }
 
-/** Turret: plate + rotating barrels + evolving core shape + level badge */
+/** Turret = a Kenney ship that evolves: hull 1→3, colour blue→green→orange→red, bigger aura per tier */
 function drawTurret(x, y, s, lvl, ang, recoil, t, alpha, active) {
+  const def = LEVELS[lvl - 1];
+  if (!Art.has(def.ship)) return drawTurretShape(x, y, s, lvl, ang, recoil, t, alpha, active);
+  const col = def.color, tier = def.tier;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.globalAlpha = alpha;
+  ctx.globalCompositeOperation = 'lighter';
+  // Big additive glows are the costliest draw here, so grid (inactive) turrets get a small one
+  const gs = s * (active ? 0.95 + tier * 0.22 : 0.85) * (1 + 0.04 * Math.sin(t * 3 + lvl));
+  ctx.globalAlpha = alpha * (active ? 0.6 : 0.3);
+  sprTint(ctx, 'p_light', col, 0, 0, gs, gs);
+  if (tier >= 2 && active) {                    // energy swirl from hull 2
+    ctx.globalAlpha = alpha * 0.4;
+    sprTint(ctx, 'p_twirl', col, 0, 0, s * 0.98, s * 0.98, t * 2.2 * (lvl % 2 ? 1 : -1));
+  }
+  ctx.globalAlpha = alpha;
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.save();
+  ctx.rotate(ang + Math.PI / 2);
+  const w = s * (0.64 + tier * 0.06), h = Art.h(def.ship, w), back = recoil * s * 0.07;
+  if (active) {                                 // engine flame flicker
+    ctx.globalCompositeOperation = 'lighter';
+    const fl = 0.85 + Math.random() * 0.3;
+    spr(ctx, 'fire_blue', 0, h * 0.5 + back + h * 0.16 * fl, w * 0.16, h * 0.42 * fl);
+    ctx.globalCompositeOperation = 'source-over';
+  }
+  spr(ctx, def.ship, 0, back, w, h);
+  ctx.restore();
+  if (tier >= 3) {                              // orbiting stars on the top hull
+    const n = lvl - 8;
+    ctx.globalCompositeOperation = 'lighter';
+    for (let k = 0; k < n; k++) {
+      const a = t * 2 + (k * TAU) / n;
+      spr(ctx, 'star3', Math.cos(a) * s * 0.42, Math.sin(a) * s * 0.42, s * 0.12, s * 0.12, t * 4);
+    }
+    ctx.globalCompositeOperation = 'source-over';
+  }
+  // level badge
+  ctx.fillStyle = col;
+  ctx.beginPath(); ctx.arc(s * 0.32, s * 0.32, s * 0.13, 0, TAU); ctx.fill();
+  ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.stroke();
+  txt(ctx, String(lvl), s * 0.32, s * 0.33, s * 0.16, PAL.plate, { weight: 900 });
+  ctx.restore();
+}
+
+/** Procedural fallback turret: plate + rotating barrels + evolving core shape + level badge */
+function drawTurretShape(x, y, s, lvl, ang, recoil, t, alpha, active) {
   const def = LEVELS[lvl - 1], col = def.color;
   ctx.save();
   ctx.translate(x, y);
@@ -1210,6 +1436,26 @@ function drawTurret(x, y, s, lvl, ang, recoil, t, alpha, active) {
 }
 
 function drawEnemy(e, x, y) {
+  if (!Art.has(e.spr)) return drawEnemyShape(e, x, y);
+  const col = ENEMY_COL[e.type], w = e.r * 2.8, h = Art.h(e.spr, w);
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.globalAlpha = 0.4;
+  sprTint(ctx, 'p_light', col, x, y, w * 1.45, w * 1.45);
+  ctx.globalAlpha = 0.9;                       // exhaust: enemies fly down, so flames point up
+  const fl = 0.8 + Math.random() * 0.4;
+  spr(ctx, 'fire', x, y - h * 0.5 - h * 0.14 * fl, w * 0.16, h * 0.38 * fl, Math.PI);
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'source-over';
+  spr(ctx, e.spr, x, y, w, h, Math.sin(e.wob * 1.3) * 0.12, e.flash > 0 ? Art.white(e.spr) : null);
+  if (e.hp < e.maxHp && e.type !== 'boss') {
+    const bw = e.r * 2, k = Math.max(0, e.hp / e.maxHp);
+    ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(x - bw / 2, y - h / 2 - 9, bw, 4);
+    ctx.fillStyle = k > 0.5 ? PAL.good : k > 0.25 ? PAL.primary : PAL.danger; ctx.fillRect(x - bw / 2, y - h / 2 - 9, bw * k, 4);
+  }
+}
+
+/** Procedural fallback enemy: a red triangle */
+function drawEnemyShape(e, x, y) {
   const r = e.r, col = ENEMY_COL[e.type];
   ctx.globalCompositeOperation = 'lighter';
   glow(x, y, r * 2.3, col, 0.45);
@@ -1247,6 +1493,19 @@ function rebuildBg() {
   const grd = g.createLinearGradient(0, 0, 0, L.H);
   grd.addColorStop(0, '#11143a'); grd.addColorStop(0.45, PAL.bg); grd.addColorStop(1, '#080a18');
   g.fillStyle = grd; g.fillRect(0, 0, L.W, L.H);
+  if (Art.has('bg_tile')) {                     // Kenney space tile, toned down to the game palette
+    g.save(); g.globalAlpha = 0.55;
+    for (let y = 0; y < L.H; y += 256) for (let x = 0; x < L.W; x += 256) spr(g, 'bg_tile', x + 128, y + 128, 257, 257);
+    g.restore();
+    g.fillStyle = 'rgba(8,10,30,0.35)'; g.fillRect(0, 0, L.W, L.H);
+    const rs = mulberry32(7);
+    for (let i = 0; i < 26; i++) {
+      g.globalAlpha = 0.25 + rs() * 0.5;
+      const sz = 4 + rs() * 9;
+      spr(g, ['star1', 'star2', 'star3'][i % 3], rs() * L.W, L.fieldTop + rs() * L.fieldH, sz, sz);
+    }
+    g.globalAlpha = 1;
+  }
   g.strokeStyle = 'rgba(76,201,240,0.07)'; g.lineWidth = 1;
   g.beginPath();
   for (let x = 0; x <= L.W; x += 45) { g.moveTo(x + 0.5, L.fieldTop); g.lineTo(x + 0.5, L.baseY); }
@@ -1260,13 +1519,21 @@ function rebuildBg() {
   const panel = (p, fill, stroke) => { rr(g, p.x, p.y, p.w, p.h, 20); g.fillStyle = fill; g.fill(); g.lineWidth = 2; g.strokeStyle = stroke; g.stroke(); };
   panel(L.panelDef, 'rgba(76,201,240,0.08)', 'rgba(76,201,240,0.45)');
   panel(L.panelGrid, 'rgba(23,27,61,0.85)', 'rgba(138,143,199,0.22)');
-  g.setLineDash([6, 6]);
-  world.cells.forEach((c, i) => {
-    rr(g, c.x - c.s / 2 + 3, c.y - c.s / 2 + 3, c.s - 6, c.s - 6, 16);
-    g.fillStyle = i < CONFIG.cols ? 'rgba(76,201,240,0.06)' : 'rgba(255,255,255,0.03)'; g.fill();
-    g.strokeStyle = i < CONFIG.cols ? 'rgba(76,201,240,0.3)' : 'rgba(138,143,199,0.22)'; g.lineWidth = 1.5; g.stroke();
-  });
-  g.setLineDash([]);
+  if (Art.has('glass')) {                       // Kenney glass panels as slots
+    world.cells.forEach((c, i) => {
+      g.globalAlpha = i < CONFIG.cols ? 0.32 : 0.16;
+      nine(g, i < CONFIG.cols ? 'glass_tab' : 'glass', c.x - c.s / 2 + 3, c.y - c.s / 2 + 3, c.s - 6, c.s - 6, 12);
+    });
+    g.globalAlpha = 1;
+  } else {
+    g.setLineDash([6, 6]);
+    world.cells.forEach((c, i) => {
+      rr(g, c.x - c.s / 2 + 3, c.y - c.s / 2 + 3, c.s - 6, c.s - 6, 16);
+      g.fillStyle = i < CONFIG.cols ? 'rgba(76,201,240,0.06)' : 'rgba(255,255,255,0.03)'; g.fill();
+      g.strokeStyle = i < CONFIG.cols ? 'rgba(76,201,240,0.3)' : 'rgba(138,143,199,0.22)'; g.lineWidth = 1.5; g.stroke();
+    });
+    g.setLineDash([]);
+  }
   txt(g, T('merge'), L.W / 2, L.gridY - 22, 13, PAL.muted, { weight: 800 });
 }
 
@@ -1279,6 +1546,10 @@ function drawWall() {
   ctx.globalCompositeOperation = 'lighter';
   ctx.fillStyle = col; ctx.fillRect(0, y, L.W, 2);
   ctx.globalCompositeOperation = 'source-over';
+  if (Art.has('bar_bg_m')) {
+    bar(ctx, L.W / 2 - 110, y - 3, 220, 16, k, k > 0.5 ? 'blue' : k > 0.25 ? 'yellow' : 'red');
+    return;
+  }
   const n = CONFIG.base.hp, pw = 14, gap = 4, x0 = L.W / 2 - (n * (pw + gap) - gap) / 2;   // HP pips
   for (let i = 0; i < n; i++) {
     ctx.fillStyle = i < world.baseHp ? col : 'rgba(255,255,255,0.12)';
@@ -1313,11 +1584,21 @@ function drawParticles(coinsOnly) {
     if (!p.alive || (p.kind === 2) !== coinsOnly) continue;
     const k = p.life / p.max;
     if (p.kind === 0) {
-      ctx.globalAlpha = k; ctx.fillStyle = p.color;
-      ctx.beginPath(); ctx.arc(p.x, p.y, p.size * (0.4 + k * 0.6), 0, TAU); ctx.fill();
+      ctx.globalAlpha = k;
+      if (Art.ok) { const d = p.size * (2.4 + k * 2); sprTint(ctx, 'p_spark', p.color, p.x, p.y, d, d); }
+      else { ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x, p.y, p.size * (0.4 + k * 0.6), 0, TAU); ctx.fill(); }
     } else if (p.kind === 1) {
-      ctx.globalAlpha = k; ctx.strokeStyle = p.color; ctx.lineWidth = p.size * k + 0.5;
-      ctx.beginPath(); ctx.arc(p.x, p.y, p.r1 * easeOutCubic(1 - k) + 2, 0, TAU); ctx.stroke();
+      ctx.globalAlpha = k;
+      const rad = p.r1 * easeOutCubic(1 - k) + 2;
+      if (Art.ok) sprTint(ctx, 'p_ring', p.color, p.x, p.y, rad * 2.3, rad * 2.3);
+      else { ctx.strokeStyle = p.color; ctx.lineWidth = p.size * k + 0.5; ctx.beginPath(); ctx.arc(p.x, p.y, rad, 0, TAU); ctx.stroke(); }
+    } else if (p.kind === 3 || p.kind === 4) {   // smoke (normal blend) / textured flash (additive)
+      const d = p.size * (1 + (p.r1 - 1) * easeOutCubic(1 - k));
+      ctx.globalAlpha = p.kind === 3 ? k * 0.45 : k;
+      if (p.kind === 3) ctx.globalCompositeOperation = 'source-over';
+      if (p.color) sprTint(ctx, p.tex, p.color, p.x, p.y, d, d, p.rot);
+      else spr(ctx, p.tex, p.x, p.y, d, d, p.rot);
+      if (p.kind === 3) ctx.globalCompositeOperation = 'lighter';
     } else {
       ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
       coinIcon(ctx, p.x, p.y, p.size);
@@ -1347,6 +1628,15 @@ function renderWorld(alpha) {
     g.addColorStop(0, `rgba(255,77,109,${0.45 * world.hurt / 0.4})`); g.addColorStop(1, 'rgba(255,77,109,0)');
     ctx.fillStyle = g; ctx.fillRect(0, L.baseY - 220, L.W, 220);
   }
+  if (Art.has('meteor1')) {
+    ctx.globalAlpha = 0.28;
+    for (let i = 0; i < 4; i++) {
+      const sp = 9 + i * 5, span = L.fieldH + 220, yy = ((world.time * sp + i * 173) % span) - 110;
+      const sz = [70, 56, 40, 26][i];
+      spr(ctx, 'meteor' + (i + 1), (i * 151 + 60) % L.W, L.fieldTop + yy, sz, Art.h('meteor' + (i + 1), sz), world.time * (0.1 + i * 0.07));
+    }
+    ctx.globalAlpha = 1;
+  }
   drawWall();
   let boss = null;
   for (const e of enemies.items) {
@@ -1357,7 +1647,15 @@ function renderWorld(alpha) {
   ctx.globalCompositeOperation = 'lighter';
   for (const b of bullets.items) {
     if (!b.alive) continue;
-    const x = lerp(b.px, b.x, alpha), y = lerp(b.py, b.y, alpha), col = LEVELS[b.lvl - 1].color;
+    const x = lerp(b.px, b.x, alpha), y = lerp(b.py, b.y, alpha), d = LEVELS[b.lvl - 1], col = d.color;
+    if (Art.has('beam_' + d.beam)) {
+      const name = 'beam_' + d.beam, len = 22 + b.lvl * 2.6, wid = (len * Art.spr[name][2]) / Art.spr[name][3] * (1 + b.lvl * 0.04);
+      ctx.globalAlpha = 0.6;
+      sprTint(ctx, 'p_light', col, x, y, b.r * 8, b.r * 8);
+      ctx.globalAlpha = 1;
+      spr(ctx, name, x, y, wid, len, Math.atan2(b.vy, b.vx) + Math.PI / 2);
+      continue;
+    }
     ctx.strokeStyle = col; ctx.lineWidth = b.r * 1.1; ctx.globalAlpha = 0.5;
     ctx.beginPath(); ctx.moveTo(x - b.vx * 0.025, y - b.vy * 0.025); ctx.lineTo(x, y); ctx.stroke();
     ctx.globalAlpha = 1;
@@ -1375,8 +1673,11 @@ function renderWorld(alpha) {
   ctx.globalAlpha = 1;
   if (boss) {                                    // big boss bar under the HUD
     const w = L.W - 60, k2 = Math.max(0, boss.hp / boss.maxHp);
-    ctx.fillStyle = 'rgba(0,0,0,0.6)'; rr(ctx, 30, L.fieldTop + 4, w, 10, 5); ctx.fill();
-    ctx.fillStyle = PAL.danger; rr(ctx, 30, L.fieldTop + 4, w * k2, 10, 5); ctx.fill();
+    if (Art.has('bar_bg_m')) bar(ctx, 30, L.fieldTop + 2, w, 16, k2, 'red');
+    else {
+      ctx.fillStyle = 'rgba(0,0,0,0.6)'; rr(ctx, 30, L.fieldTop + 4, w, 10, 5); ctx.fill();
+      ctx.fillStyle = PAL.danger; rr(ctx, 30, L.fieldTop + 4, w * k2, 10, 5); ctx.fill();
+    }
   }
   ctx.restore();
 }
@@ -1505,7 +1806,7 @@ function findMergePair() {
 const dragPos = () => ({ x: drag.x, y: drag.y - (drag.touch ? 34 : 0) });   // lift above the finger
 
 function hintPill(text) {
-  ctx.font = `800 17px ${FONT}`;
+  ctx.font = fontStr(17, 800);
   const w = Math.min(L.W - 40, ctx.measureText(text).width + 40), y = L.baseY - 44;
   rr(ctx, L.W / 2 - w / 2, y - 19, w, 38, 19); ctx.fillStyle = 'rgba(8,10,28,0.85)'; ctx.fill();
   ctx.strokeStyle = hexA(PAL.primary, 0.6); ctx.lineWidth = 2; ctx.stroke();
@@ -1522,8 +1823,9 @@ function drawPlayOverlay() {
       hintPill(T('hintMerge'));
       const a = w.cells[pair[0]], b = w.cells[pair[1]], k = easeOutCubic((t * 0.8) % 1);
       drawTurret(lerp(a.x, b.x, k), lerp(a.y, b.y, k), a.s, a.lvl, -Math.PI / 2, 0, t, 0.45, false);
-      ctx.fillStyle = 'rgba(255,255,255,0.9)';
-      ctx.beginPath(); ctx.arc(lerp(a.x, b.x, k) + 14, lerp(a.y, b.y, k) + 18, 12, 0, TAU); ctx.fill();
+      const hx = lerp(a.x, b.x, k) + 16, hy = lerp(a.y, b.y, k) + 22;
+      if (Art.has('hand')) spr(ctx, 'hand', hx, hy, 46, 46);
+      else { ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.beginPath(); ctx.arc(hx, hy, 12, 0, TAU); ctx.fill(); }
     } else hintPill(T('hintBuy'));
   }
   // banner
@@ -1553,6 +1855,10 @@ function drawPlayOverlay() {
     rr(ctx, cx - 150, cy - 100, 300, 200, 22); ctx.fillStyle = 'rgba(15,18,48,0.92)'; ctx.fill();
     ctx.strokeStyle = col; ctx.lineWidth = 3; ctx.stroke();
     txt(ctx, T('newT'), cx, cy - 72, 26, PAL.primary, { weight: 900, stroke: 5 });
+    if (Art.has('star_gold')) {
+      const ss = 26 + Math.sin(t * 6) * 3;
+      spr(ctx, 'star_gold', cx - 118, cy - 72, ss, ss, -0.3); spr(ctx, 'star_gold', cx + 118, cy - 72, ss, ss, 0.3);
+    }
     drawTurret(cx, cy - 2, 92 * easeOutBack(clamp(u.t / 0.45, 0, 1)), u.lvl, -Math.PI / 2, 0, t, 1, true);
     txt(ctx, `${T('lvl')} ${u.lvl} · ${T('names')[u.lvl - 1]}`, cx, cy + 58, 21, col, { weight: 900, maxW: 270 });
     txt(ctx, `${T('dmg')} ${fmt(dmgOf(u.lvl))}`, cx, cy + 82, 15, PAL.muted, { weight: 800 });
@@ -1569,7 +1875,7 @@ function drawPlayOverlay() {
     const g = dragPos(), tgt = drag.hover >= 0 ? w.cells[drag.hover] : null;
     const merging = tgt && drag.hover !== drag.from && tgt.lvl === drag.lvl && drag.lvl < CONFIG.maxLevel;
     drawTurret(g.x, g.y, CONFIG.cell * 1.1, drag.lvl, -Math.PI / 2, 0, t, 0.92, true);
-    const label = merging ? `→ ${T('lvl')} ${drag.lvl + 1} · ${T('names')[drag.lvl]}` : `${T('lvl')} ${drag.lvl} · ${T('names')[drag.lvl - 1]}`;
+    const label = merging ? `» ${T('lvl')} ${drag.lvl + 1} · ${T('names')[drag.lvl]}` : `${T('lvl')} ${drag.lvl} · ${T('names')[drag.lvl - 1]}`;
     txt(ctx, label, clamp(g.x, 110, L.W - 110), g.y - 64, 17, merging ? PAL.good : PAL.text, { weight: 900, stroke: 4, maxW: 210 });
   }
   setUI();
@@ -1611,9 +1917,12 @@ function drawMenu(t) {
   ctx.save(); ctx.translate(L.W / 2, py); ctx.scale(ps, ps);
   rr(ctx, -200, -40, 400, 80, 40); ctx.fillStyle = PAL.primary; ctx.fill();
   ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 3; ctx.stroke();
-  txt(ctx, '▶  ' + T('tap'), 0, 2, 28, '#2b1d00', { weight: 900, maxW: 360 });
+  ctx.fillStyle = '#2b1d00';
+  ctx.beginPath(); ctx.moveTo(-168, -13); ctx.lineTo(-168, 13); ctx.lineTo(-146, 0); ctx.closePath(); ctx.fill();
+  txt(ctx, T('tap'), 14, 2, 28, '#2b1d00', { weight: 900, maxW: 300 });
   ctx.restore();
   if (world.best > 1) txt(ctx, `${T('best')} ${world.best}`, L.W / 2, py + 72, 20, PAL.muted, { weight: 800, stroke: 4 });
+  if (Art.ok) txt(ctx, T('credits'), L.W / 2, L.H - 18, 12, hexA(PAL.muted, 0.8), { weight: 600, maxW: L.W - 30 });
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1676,13 +1985,17 @@ function boot() {
   document.documentElement.lang = LANG;
   loadGame();
   layout();
-  setState('menu');
+  setState('loading');
   requestAnimationFrame(t => { last = t; frame(t); });
-  // The SDK loads in parallel; the menu is already interactive
-  YSDK.init().then(sdk => {
-    if (sdk) { LANG = pickLang(YSDK.lang()); document.documentElement.lang = LANG; rebuildBg(); }
-    YSDK.ready();   // LoadingAPI.ready(): tells Yandex the game is playable
+  // Sprites + font and the Yandex SDK load in parallel
+  const art = Art.load(p => { States.loading.p = p; }).then(() => {
+    rebuildBg();                       // redraw the static layer with sprites and the real font
+    if (curName === 'loading') setState('menu');
   });
+  const sdk = YSDK.init().then(sdk => {
+    if (sdk) { LANG = pickLang(YSDK.lang()); document.documentElement.lang = LANG; rebuildBg(); }
+  });
+  Promise.all([art, sdk]).then(() => YSDK.ready());   // LoadingAPI.ready(): the game is playable
 }
 boot();
 </script>
