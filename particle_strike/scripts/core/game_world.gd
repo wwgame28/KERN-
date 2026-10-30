@@ -159,6 +159,7 @@ func on_chunk_impact(pos: Vector3, n: int, explosive: bool) -> void:
 		schedule_explosion(pos, 5.0, 0.05)
 	if n > 450:
 		slowmo(0.5, 0.35)
+		Sfx.vibrate(60)
 
 
 # ---------------------------------------------------------------- лучи
@@ -242,6 +243,8 @@ func explode(pos: Vector3, radius: float, damage: float, element: int, team: int
 		debris.burst(pos, 8, col, radius * 4.0, 0.14, true, 2.0)
 		Sfx.play_at("hit", pos)
 	add_shake(clampf(radius * 0.1, 0.05, 0.6) * _shake_falloff(pos))
+	if big_fx and radius >= 2.5 and _shake_falloff(pos) > 0.5:
+		Sfx.vibrate(25)
 
 
 func schedule_explosion(pos: Vector3, radius: float, delay: float) -> void:

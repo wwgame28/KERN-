@@ -21,7 +21,7 @@ func start(world: GameWorld) -> void:
 	gw = world
 	wave = 0
 	state = "break"
-	break_t = 5.0
+	break_t = 9.0
 
 
 func remaining() -> int:
@@ -66,7 +66,7 @@ func _begin_wave() -> void:
 	hp_mult = 1.0 + 0.12 * float(wave - 1)
 	alive_cap = mini(10 + wave, 22)
 	to_spawn.clear()
-	var n := 5 + wave * 3
+	var n := 3 + wave * 3
 	for i in n:
 		var r := randf()
 		var t := "swarmer"

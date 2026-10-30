@@ -24,15 +24,15 @@ var _wave := 0
 
 
 func _ready() -> void:
-	set_anchors_preset(Control.PRESET_FULL_RECT)
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	theme = _make_theme()
 	bg = Control.new()
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	bg.mouse_filter = Control.MOUSE_FILTER_STOP
 	bg.draw.connect(_draw_bg)
 	add_child(bg)
 	center = CenterContainer.new()
-	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(center)
 	panel = PanelContainer.new()
@@ -360,6 +360,8 @@ func show_settings(from_pause: bool) -> void:
 	_toggle("Вид от первого лица", "first_person")
 	_toggle("Инверсия по вертикали", "invert_y")
 	_toggle("Звук", "sound")
+	_toggle("Музыка", "music")
+	_toggle("Вибрация", "vibration")
 	_toggle("Показывать FPS", "show_fps")
 	_toggle("Открыть все локации", "all_locations")
 	_slider("Чувствительность", "sensitivity", 0.3, 2.5, 0.05)

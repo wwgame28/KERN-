@@ -31,6 +31,8 @@ const DEFS := {
 }
 
 var _streams := {}
+var _music: AudioStreamPlayer
+var _music_cache := {}
 var _players: Array[AudioStreamPlayer] = []
 var _next := 0
 var _last_play := {}
@@ -44,6 +46,83 @@ func _ready() -> void:
 	for key in DEFS.keys():
 		var d: Array = DEFS[key]
 		_streams[key] = _synth(d[0], d[1], d[2], d[3], d[4], d[5], d[6], d[7])
+	_music = AudioStreamPlayer.new()
+	_music.volume_db = -14.0
+	add_child(_music)
+	GameState.settings_changed.connect(_on_settings)
+
+
+func _on_settings() -> void:
+	if not bool(GameState.get_setting("music", true)) and _music.playing:
+		_music.stop()
+
+
+# ---------------------------------------------------------------- вибрация
+
+func vibrate(ms: int) -> void:
+	if bool(GameState.get_setting("vibration", true)) and OS.has_feature("mobile"):
+		Input.vibrate_handheld(ms)
+
+
+# ---------------------------------------------------------------- музыка
+
+# Аккорды-«подложки» для локаций (Гц). Частоты кратны 1/8 Гц — петля 8 с без щелчка.
+const MOODS := {
+	"city": [110.0, 164.75, 220.0, 261.625, 329.625],
+	"village": [130.75, 196.0, 261.625, 329.625, 392.0],
+	"wasteland": [73.375, 110.0, 146.875, 220.0, 293.625],
+	"space": [82.375, 123.5, 164.75, 246.875, 369.875],
+	"menu": [98.0, 146.875, 196.0, 293.625, 370.0],
+}
+
+
+func prepare_music(mood: String) -> void:
+	## Генерация заранее (на экране загрузки), чтобы не было рывка в игре.
+	if not _music_cache.has(mood):
+		_music_cache[mood] = _pad(MOODS.get(mood, MOODS["menu"]))
+
+
+func play_music(mood: String) -> void:
+	if not bool(GameState.get_setting("music", true)):
+		return
+	prepare_music(mood)
+	if _music.stream == _music_cache[mood] and _music.playing:
+		return
+	_music.stream = _music_cache[mood]
+	_music.play()
+
+
+func stop_music() -> void:
+	_music.stop()
+
+
+func _pad(freqs: Array) -> AudioStreamWAV:
+	## Медленный эмбиент-аккорд: синусы с лёгкой расстройкой и «дыханием» громкости.
+	var dur := 8.0
+	var rate := 11025
+	var n := int(dur * rate)
+	var data := PackedByteArray()
+	data.resize(n * 2)
+	var count := freqs.size()
+	for i in n:
+		var t := float(i) / rate
+		var s := 0.0
+		for k in count:
+			var f: float = freqs[k]
+			var lfo := 0.55 + 0.45 * sin(TAU * t / dur * float(k % 2 + 1) + float(k))
+			s += sin(TAU * f * t) * lfo
+			s += sin(TAU * (f * 2.0) * t) * 0.12 * lfo
+		s = s / float(count) * 0.55
+		data.encode_s16(i * 2, int(clampf(s, -1.0, 1.0) * 32767.0))
+	var w := AudioStreamWAV.new()
+	w.format = AudioStreamWAV.FORMAT_16_BITS
+	w.mix_rate = rate
+	w.stereo = false
+	w.data = data
+	w.loop_mode = AudioStreamWAV.LOOP_FORWARD
+	w.loop_begin = 0
+	w.loop_end = n
+	return w
 
 
 func play(sound: String, volume_db: float = 0.0, pitch_jitter: float = 0.08) -> void:

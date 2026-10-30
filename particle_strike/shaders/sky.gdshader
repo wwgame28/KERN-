@@ -34,7 +34,7 @@ void sky() {
 	col = mix(col, bottom_color, 1.0 - smoothstep(-0.25, 0.0, h));
 	if (LIGHT0_ENABLED) {
 		float sd = dot(d, normalize(LIGHT0_DIRECTION));
-		col += sun_color * (smoothstep(1.0 - sun_size, 1.0 - sun_size * 0.6, sd) * 3.0);
+		col += sun_color * (smoothstep(1.0 - sun_size, 1.0 - sun_size * 0.6, sd) * 1.8);
 		col += sun_color * pow(max(sd, 0.0), 10.0) * 0.45;
 	}
 	if (nebula > 0.0) {

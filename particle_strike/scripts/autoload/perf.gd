@@ -54,10 +54,21 @@ func apply() -> void:
 	preset_applied.emit()
 
 
+func _upscale_mode() -> int:
+	## FSR 1.0 в Godot 4.4 есть только в Forward+. На Mobile-рендере под Metal
+	## (Godot 4.5+) берём MetalFX Spatial, иначе — билинейный апскейл.
+	if RenderingServer.get_current_rendering_method() == "forward_plus":
+		return Viewport.SCALING_3D_MODE_FSR
+	var metalfx := "SCALING_3D_MODE_METALFX_SPATIAL"
+	if ClassDB.class_has_integer_constant("Viewport", metalfx) and RenderingServer.get_current_rendering_driver_name() == "metal":
+		return ClassDB.class_get_integer_constant("Viewport", metalfx)
+	return Viewport.SCALING_3D_MODE_BILINEAR
+
+
 func _apply_scale() -> void:
 	var vp := get_viewport()
 	if current_scale < 0.99:
-		vp.scaling_3d_mode = Viewport.SCALING_3D_MODE_FSR
+		vp.scaling_3d_mode = _upscale_mode() as Viewport.Scaling3DMode
 		vp.fsr_sharpness = 0.35
 	else:
 		vp.scaling_3d_mode = Viewport.SCALING_3D_MODE_BILINEAR

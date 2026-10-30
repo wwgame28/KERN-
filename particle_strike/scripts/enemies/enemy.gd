@@ -5,7 +5,7 @@ extends CharacterBody3D
 ## Колосс (босс каждые 5 волн). Статусы: заморозка, горение, отбрасывание.
 
 const TYPES := {
-	"swarmer": {"name": "Рой", "hp": 34.0, "speed": 8.5, "damage": 9.0, "reward": 8,
+	"swarmer": {"name": "Рой", "hp": 34.0, "speed": 8.0, "damage": 7.0, "reward": 8,
 		"color": Color(0.45, 0.15, 0.75), "glow": Color(1.0, 0.3, 0.9), "radius": 0.5, "height": 0.9, "scale": 1.0},
 	"shooter": {"name": "Стрелок", "hp": 70.0, "speed": 4.8, "damage": 10.0, "reward": 14,
 		"color": Color(0.55, 0.1, 0.14), "glow": Color(1.0, 0.35, 0.25), "radius": 0.45, "height": 1.8, "scale": 1.0},
@@ -242,7 +242,7 @@ func _physics_process(delta: float) -> void:
 			"swarmer":
 				want = dir_flat * speed
 				if dist < 1.8 and attack_cd <= 0.0:
-					attack_cd = 0.9
+					attack_cd = 1.1
 					pl.take_damage(float(def["damage"]), global_position)
 					knock -= dir_flat * 4.0
 			"shooter":

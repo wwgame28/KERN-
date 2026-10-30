@@ -7,6 +7,8 @@ uniform vec3 base_color : source_color = vec3(0.05, 0.06, 0.1);
 uniform vec3 dot_color : source_color = vec3(0.3, 0.5, 1.0);
 uniform float dot_scale = 2.0;
 uniform float dot_glow = 0.6;
+uniform float dot_size = 0.3;
+uniform float contrast = 0.65;
 uniform float roughness_val = 0.7;
 uniform float metallic_val = 0.0;
 uniform float road_spacing = 0.0;
@@ -30,12 +32,12 @@ void fragment() {
 	vec2 f = fract(p) - 0.5;
 	float h = hash(cell);
 	float d = max(abs(f.x), abs(f.y));
-	float sq = 1.0 - smoothstep(0.28, 0.38, d);
+	float sq = 1.0 - smoothstep(dot_size, dot_size + 0.08, d);
 	float aa = clamp(1.6 - fwidth(p.x) * 2.5, 0.0, 1.0);
 	sq *= aa;
 	float tw = 0.5 + 0.5 * sin(TIME * (0.8 + h * 2.0) + h * 30.0);
 	vec3 col = base_color * (0.7 + 0.6 * h);
-	vec3 albedo = mix(base_color * 0.65, col, sq);
+	vec3 albedo = mix(base_color * contrast, col, sq);
 	vec3 em = dot_color * sq * dot_glow * (0.15 + 0.85 * tw * step(0.72, h));
 	if (road_spacing > 0.0) {
 		vec2 m = abs(mod(wpos.xz + road_spacing * 0.5, road_spacing) - road_spacing * 0.5);

@@ -24,6 +24,7 @@ func _ready() -> void:
 	menus.quit_requested.connect(quit_to_menu)
 	menus.retry_requested.connect(_retry)
 	menus.show_main()
+	Sfx.play_music("menu")
 
 
 func _retry() -> void:
@@ -38,6 +39,8 @@ func start_location(id: String) -> void:
 	await _teardown()
 	menus.show_loading("Сборка мира: " + String(GameState.LOCATION_NAMES.get(id, id)))
 	await get_tree().process_frame
+	if bool(GameState.get_setting("music", true)):
+		Sfx.prepare_music(id)
 
 	world = GameWorld.new()
 	world.name = "World"
@@ -73,7 +76,28 @@ func start_location(id: String) -> void:
 	get_tree().paused = false
 	Perf.adaptive_active = true
 	world.notify.emit(String(GameState.LOCATION_NAMES.get(id, id)).to_upper(), Color(0.5, 0.9, 1.0))
+	Sfx.play_music(id)
 	_loading = false
+	if not bool(GameState.get_setting("tips_shown", false)):
+		_run_tips()
+
+
+func _run_tips() -> void:
+	## Подсказки при первом запуске.
+	var tips := [
+		"Левый палец — бег, правый — поворот камеры",
+		"Держи ОГОНЬ и веди пальцем — прицел следует за ним",
+		"Стреляй в низ зданий — верх рухнет целиком",
+		"Светящиеся частицы — валюта. Подходи ближе — магнит соберёт",
+		"Вихрь заряжается от разрушений. Стена стоит 40 частиц",
+	]
+	var w := world
+	for t in tips:
+		await get_tree().create_timer(4.5, false).timeout
+		if world != w or world == null or hud == null:
+			return
+		hud.show_tip(t, 4.2)
+	GameState.set_setting("tips_shown", true)
 
 
 func _teardown() -> void:
@@ -122,6 +146,7 @@ func quit_to_menu() -> void:
 	GameState.save_game()
 	await _teardown()
 	menus.show_main()
+	Sfx.play_music("menu")
 
 
 func _on_player_died() -> void:

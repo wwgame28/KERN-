@@ -60,7 +60,7 @@ static func make_environment(gw: GameWorld, cfg: Dictionary) -> void:
 static func make_ground(gw: GameWorld, cfg: Dictionary, disc_radius: float = 0.0) -> void:
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://shaders/ground.gdshader")
-	for key in ["base_color", "dot_color", "dot_scale", "dot_glow", "roughness_val", "metallic_val", "road_spacing", "road_width", "road_color", "line_color"]:
+	for key in ["base_color", "dot_color", "dot_scale", "dot_glow", "dot_size", "contrast", "roughness_val", "metallic_val", "road_spacing", "road_width", "road_color", "line_color"]:
 		if cfg.has(key):
 			mat.set_shader_parameter(key, cfg[key])
 	var mi := MeshInstance3D.new()

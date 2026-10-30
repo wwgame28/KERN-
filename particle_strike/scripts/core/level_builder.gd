@@ -164,11 +164,11 @@ static func _build_village(ctx: Ctx) -> void:
 		"horizon_sharp": 0.45,
 		"ambient": Color(0.55, 0.42, 0.45), "ambient_energy": 0.55,
 		"sun_light": Color(1.0, 0.7, 0.45), "sun_energy": 1.35, "sun_elev": 13.0, "sun_yaw": -60.0,
-		"fog_color": Color(0.85, 0.55, 0.42), "fog_density": 0.006, "glow": 0.8, "bloom": 0.1,
+		"fog_color": Color(0.9, 0.6, 0.45), "fog_density": 0.0032, "fog_sky": 0.08, "glow": 0.7, "bloom": 0.05,
 	})
 	LevelEnv.make_ground(gw, {
-		"base_color": Color(0.17, 0.24, 0.09), "dot_color": Color(1.0, 0.85, 0.45), "dot_scale": 2.6,
-		"dot_glow": 0.18, "roughness_val": 0.9,
+		"base_color": Color(0.16, 0.26, 0.08), "dot_color": Color(1.0, 0.85, 0.45), "dot_scale": 3.0,
+		"dot_glow": 0.15, "roughness_val": 0.9, "dot_size": 0.2, "contrast": 0.85,
 	})
 	LevelEnv.make_bounds(gw, 64.0)
 	LevelEnv.make_backdrop(gw, "mountains", rng, {
@@ -215,16 +215,16 @@ static func _build_wasteland(ctx: Ctx) -> void:
 	var gw := ctx.gw
 	var rng := ctx.rng
 	LevelEnv.make_environment(gw, {
-		"top_color": Color(0.32, 0.38, 0.55), "horizon_color": Color(0.95, 0.62, 0.38),
-		"bottom_color": Color(0.4, 0.3, 0.2), "sun_color": Color(1.0, 0.85, 0.6), "sun_size": 0.04,
-		"horizon_sharp": 0.5,
+		"top_color": Color(0.2, 0.36, 0.66), "horizon_color": Color(0.95, 0.62, 0.38),
+		"bottom_color": Color(0.4, 0.3, 0.2), "sun_color": Color(0.8, 0.62, 0.4), "sun_size": 0.018,
+		"horizon_sharp": 0.35, "exposure": 0.9,
 		"ambient": Color(0.6, 0.5, 0.42), "ambient_energy": 0.6,
 		"sun_light": Color(1.0, 0.82, 0.62), "sun_energy": 1.5, "sun_elev": 28.0, "sun_yaw": 20.0,
-		"fog_color": Color(0.82, 0.6, 0.42), "fog_density": 0.011, "fog_sky": 0.4, "glow": 0.7, "bloom": 0.06,
+		"fog_color": Color(0.82, 0.6, 0.42), "fog_density": 0.0065, "fog_sky": 0.15, "glow": 0.45, "bloom": 0.02,
 	})
 	LevelEnv.make_ground(gw, {
-		"base_color": Color(0.48, 0.34, 0.2), "dot_color": Color(1.0, 0.7, 0.4), "dot_scale": 2.2,
-		"dot_glow": 0.12, "roughness_val": 0.95,
+		"base_color": Color(0.48, 0.34, 0.2), "dot_color": Color(1.0, 0.7, 0.4), "dot_scale": 2.6,
+		"dot_glow": 0.1, "roughness_val": 0.95, "dot_size": 0.22, "contrast": 0.82,
 	})
 	LevelEnv.make_bounds(gw, 64.0)
 	LevelEnv.make_backdrop(gw, "mesas", rng, {

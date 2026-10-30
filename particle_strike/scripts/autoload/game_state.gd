@@ -53,6 +53,9 @@ var settings := {
 	"all_locations": false,
 	"invert_y": false,
 	"sound": true,
+	"music": true,
+	"vibration": true,
+	"tips_shown": false,
 }
 
 

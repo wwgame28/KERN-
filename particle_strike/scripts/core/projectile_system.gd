@@ -141,6 +141,12 @@ func _physics_process(delta: float) -> void:
 			var mask := GameWorld.L_WORLD | GameWorld.L_DESTRUCT
 			mask |= GameWorld.L_ENEMY if p.team == 0 else GameWorld.L_PLAYER
 			var hit := gw.raycast(p.pos, next, mask)
+			if p.team == 0 and hit.get("enemy") == null:
+				# неконтактный взрыватель / «толстый» луч: прощает промах на сенсорном экране
+				var seg_end: Vector3 = next if hit.is_empty() else hit["position"]
+				var near := _proximity_enemy(gw, p.pos, seg_end, _proximity(p))
+				if near:
+					hit = {"position": near.center() - p.vel.normalized() * near.hit_radius * 0.5, "enemy": near, "normal": -p.vel.normalized(), "object": null}
 			if not hit.is_empty():
 				_impact(gw, p, hit)
 				done = true
@@ -160,6 +166,32 @@ func _physics_process(delta: float) -> void:
 			if p.trail_t > 0.02:
 				p.trail_t = 0.0
 				gw.debris.spawn(p.pos - p.vel.normalized() * 0.4, Vector3(randf_range(-1, 1), randf_range(0, 1.5), randf_range(-1, 1)), Color(1.0, 0.5, 0.2), 0.16, true)
+
+
+func _proximity(p: Proj) -> float:
+	match p.kind:
+		"rocket":
+			return 1.1
+		"frag":
+			return 0.5
+	return 0.3
+
+
+func _proximity_enemy(gw: GameWorld, a: Vector3, b: Vector3, extra: float) -> Enemy:
+	var ab := b - a
+	var l2 := maxf(ab.length_squared(), 0.0001)
+	var best: Enemy = null
+	var best_t := 2.0
+	for e: Enemy in gw.enemies:
+		if not e.is_alive():
+			continue
+		var c := e.center()
+		var t := clampf((c - a).dot(ab) / l2, 0.0, 1.0)
+		var r := e.hit_radius + extra
+		if c.distance_squared_to(a + ab * t) < r * r and t < best_t:
+			best_t = t
+			best = e
+	return best
 
 
 func _update_plasma(gw: GameWorld, p: Proj, next: Vector3) -> bool:

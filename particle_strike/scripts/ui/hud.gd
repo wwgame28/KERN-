@@ -19,13 +19,15 @@ var _max_hp := 100.0
 var _shield := 50.0
 var _max_shield := 50.0
 var _shown_particles := 0.0
+var _tip := ""
+var _tip_t := 0.0
 
 
 func setup(world: GameWorld, p: Player, c: TouchControls) -> void:
 	gw = world
 	player = p
 	controls = c
-	set_anchors_preset(Control.PRESET_FULL_RECT)
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	gw.notify.connect(_on_notify)
 	gw.hit_marker.connect(_on_hit)
@@ -44,6 +46,11 @@ func _on_notify(text: String, color: Color) -> void:
 	_notes.append({"text": text, "color": color, "t": 2.2})
 	if _notes.size() > 3:
 		_notes.pop_front()
+
+
+func show_tip(text: String, duration: float) -> void:
+	_tip = text
+	_tip_t = duration
 
 
 func _on_hit(kill: bool) -> void:
@@ -74,6 +81,7 @@ func _process(delta: float) -> void:
 	_kill_t = maxf(_kill_t - delta, 0.0)
 	_dmg_t = maxf(_dmg_t - delta, 0.0)
 	_combo_pop = maxf(_combo_pop - delta * 4.0, 0.0)
+	_tip_t = maxf(_tip_t - delta, 0.0)
 	for i in range(_notes.size() - 1, -1, -1):
 		_notes[i]["t"] = float(_notes[i]["t"]) - delta
 		if float(_notes[i]["t"]) <= 0.0:
@@ -218,6 +226,15 @@ func _draw() -> void:
 		var c: Color = n["color"]
 		_text(font, Vector2(0, ny), String(n["text"]), int(26 * u), Color(c.r, c.g, c.b, a2), HORIZONTAL_ALIGNMENT_CENTER, vp.x)
 		ny += 34.0 * u
+
+	# --- подсказка обучения
+	if _tip_t > 0.0 and _tip != "":
+		var ta := clampf(_tip_t / 0.5, 0.0, 1.0)
+		var tw := minf(vp.x * 0.5, 620.0 * u)
+		var tr := Rect2((vp.x - tw) * 0.5, vp.y * 0.62, tw, 44.0 * u)
+		draw_rect(tr, Color(0.03, 0.05, 0.12, 0.7 * ta))
+		draw_rect(tr, Color(0.4, 0.8, 1.0, 0.6 * ta), false, 2.0)
+		_text(font, tr.position + Vector2(0, 29.0 * u), _tip, int(18 * u), Color(0.9, 0.97, 1.0, ta), HORIZONTAL_ALIGNMENT_CENTER, tw)
 
 	# --- FPS
 	if bool(GameState.get_setting("show_fps", false)):

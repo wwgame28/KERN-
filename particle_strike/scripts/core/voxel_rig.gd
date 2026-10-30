@@ -168,7 +168,7 @@ static func build_humanoid(body: Color, accent: Color, glow: Color, scale_m: flo
 
 static func build_gun(rig: VoxelRig, parent_name: String, color: Color, kind: String, hand_y: float = -0.58) -> Part:
 	var c := Color(color.r, color.g, color.b, 1.0)
-	var dark := Color(0.12, 0.13, 0.18, 0.1)
+	var dark := Color(color.r * 0.35 + 0.05, color.g * 0.35 + 0.05, color.b * 0.35 + 0.07, 0.35)
 	var l := 0.45
 	match kind:
 		"shotgun":

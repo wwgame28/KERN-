@@ -81,13 +81,13 @@ func setup(world: GameWorld, touch: TouchControls) -> void:
 	cam_pitch = Node3D.new()
 	cam_yaw.add_child(cam_pitch)
 	spring = SpringArm3D.new()
-	spring.spring_length = 3.4
+	spring.spring_length = 3.8
 	spring.margin = 0.25
 	spring.collision_mask = GameWorld.L_WORLD | GameWorld.L_DESTRUCT
 	var sph := SphereShape3D.new()
 	sph.radius = 0.25
 	spring.shape = sph
-	spring.position = Vector3(0.7, 0.15, 0)
+	spring.position = Vector3(1.05, 0.3, 0)
 	cam_pitch.add_child(spring)
 	spring.add_excluded_object(get_rid())
 	camera = Camera3D.new()
@@ -98,9 +98,10 @@ func setup(world: GameWorld, touch: TouchControls) -> void:
 	camera.current = true
 
 	viewmodel = VoxelRig.new()
-	viewmodel.vsize = 0.05
-	viewmodel.position = Vector3(0.26, -0.24, -0.45)
-	viewmodel.rotation_degrees.y = 180.0
+	viewmodel.vsize = 0.03
+	viewmodel.position = Vector3(0.24, -0.2, -0.42)
+	viewmodel.rotation_degrees = Vector3(-2.0, 186.0, 0.0)
+	viewmodel.scale = Vector3.ONE * 0.65
 	camera.add_child(viewmodel)
 
 	for id in WeaponData.ORDER:
@@ -282,6 +283,7 @@ func take_damage(amount: float, from_pos: Vector3) -> void:
 	hit_flash = 1.0
 	gw.add_shake(0.22)
 	Sfx.play("hurt", -2.0)
+	Sfx.vibrate(35)
 	damaged.emit(from_pos)
 	health_changed.emit(hp, max_hp, shield, max_shield)
 	if hp <= 0.0:
@@ -518,8 +520,8 @@ func _process(delta: float) -> void:
 		spring.spring_length = 0.0
 		spring.position = Vector3(0, 0.1, 0)
 	else:
-		spring.spring_length = lerpf(spring.spring_length, 2.1 if aiming else 3.4, clampf(delta * 8.0, 0.0, 1.0))
-		spring.position = spring.position.lerp(Vector3(0.85 if aiming else 0.7, 0.15, 0), clampf(delta * 8.0, 0.0, 1.0))
+		spring.spring_length = lerpf(spring.spring_length, 2.2 if aiming else 3.8, clampf(delta * 8.0, 0.0, 1.0))
+		spring.position = spring.position.lerp(Vector3(1.15 if aiming else 1.05, 0.3, 0), clampf(delta * 8.0, 0.0, 1.0))
 
 	# тряска камеры
 	_shake_t += delta * 40.0
@@ -537,7 +539,7 @@ func _process(delta: float) -> void:
 	rig.rotation.y = lerp_angle(rig.rotation.y, yaw + PI, clampf(delta * 14.0, 0.0, 1.0))
 	var firing_pose := aiming or (controls != null and controls.fire_held) or recoil > 0.05
 	rig.animate_humanoid(anim_t, move, not is_on_floor(), pitch if firing_pose else -0.3, firing_pose, recoil, clampf(dash_t / DASH_TIME, 0.0, 1.0), land_squash)
-	viewmodel.position = Vector3(0.26, -0.24 + sin(anim_t) * 0.01 * move, -0.45 + recoil * 0.06)
+	viewmodel.position = Vector3(0.24, -0.2 + sin(anim_t) * 0.008 * move, -0.42 + recoil * 0.05)
 	hit_flash = maxf(hit_flash - delta * 5.0, 0.0)
 	var fl := hit_flash * 0.8 + (0.35 if invuln > 0.0 else 0.0)
 	rig.set_flash(fl)
