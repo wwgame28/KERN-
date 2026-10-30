@@ -33,3 +33,7 @@ Amvera автоматически прочитает `amvera.yml`, соберё�
 - `.env.example` — только названия нужных секретов.
 
 Исходный проект KERN не уничтожен безвозвратно: его история остаётся в предыдущих Git-коммитах.
+
+## Particle Strike (мобильная игра на Godot 4)
+
+В папке [`particle_strike/`](particle_strike/) лежит проект мобильного 3D-шутера с разрушаемым миром из частиц: 4 локации, 6 видов оружия, волны врагов и боссы, улучшения. Готовый архив для Xogot на iPhone — [`ParticleStrike.zip`](ParticleStrike.zip). Инструкция по запуску и описание механик — в [`particle_strike/README.md`](particle_strike/README.md).
