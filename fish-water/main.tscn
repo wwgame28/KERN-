@@ -1,21 +1,25 @@
-[gd_scene load_steps=25 format=3]
+[gd_scene load_steps=21 format=3]
 
 [ext_resource type="Shader" path="res://water.gdshader" id="1_water"]
 [ext_resource type="Script" path="res://fish.gd" id="2_fish"]
 [ext_resource type="Script" path="res://touch_ui.gd" id="3_touch"]
-
-[sub_resource type="ProceduralSkyMaterial" id="sky_mat"]
-sky_top_color = Color(0.25, 0.5, 0.85, 1)
-sky_horizon_color = Color(0.7, 0.82, 0.92, 1)
-
-[sub_resource type="Sky" id="sky"]
-sky_material = SubResource("sky_mat")
+[ext_resource type="Script" path="res://fish_model.gd" id="4_model"]
+[ext_resource type="Script" path="res://aquarium.gd" id="5_aquarium"]
+[ext_resource type="Script" path="res://underwater_camera.gd" id="6_cam"]
+[ext_resource type="Shader" path="res://underwater.gdshader" id="7_under"]
 
 [sub_resource type="Environment" id="env"]
-background_mode = 2
-sky = SubResource("sky")
-ambient_light_source = 3
+background_mode = 1
+background_color = Color(0.04, 0.05, 0.07, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.4, 0.5, 0.6, 1)
+ambient_light_energy = 0.6
 tonemap_mode = 2
+glow_enabled = true
+glow_intensity = 0.4
+fog_light_color = Color(0.06, 0.32, 0.4, 1)
+fog_density = 0.0
+fog_sky_affect = 0.0
 
 [sub_resource type="FastNoiseLite" id="noise1"]
 frequency = 0.02
@@ -25,22 +29,30 @@ seed = 7
 frequency = 0.03
 
 [sub_resource type="NoiseTexture2D" id="normal1"]
+width = 256
+height = 256
 seamless = true
 as_normal_map = true
 bump_strength = 4.0
 noise = SubResource("noise1")
 
 [sub_resource type="NoiseTexture2D" id="normal2"]
+width = 256
+height = 256
 seamless = true
 as_normal_map = true
 bump_strength = 4.0
 noise = SubResource("noise2")
 
 [sub_resource type="NoiseTexture2D" id="height1"]
+width = 256
+height = 256
 seamless = true
 noise = SubResource("noise1")
 
 [sub_resource type="NoiseTexture2D" id="height2"]
+width = 256
+height = 256
 seamless = true
 noise = SubResource("noise2")
 
@@ -49,10 +61,14 @@ seed = 3
 frequency = 0.08
 
 [sub_resource type="NoiseTexture2D" id="edge1"]
+width = 256
+height = 256
 seamless = true
 noise = SubResource("noise_edge")
 
 [sub_resource type="NoiseTexture2D" id="edge2"]
+width = 256
+height = 256
 seamless = true
 noise = SubResource("noise1")
 
@@ -60,7 +76,7 @@ noise = SubResource("noise1")
 render_priority = 0
 shader = ExtResource("1_water")
 shader_parameter/absorptioncolour = Color(0.72, 0.9, 0.92, 1)
-shader_parameter/absorptionmultiplier = 0.15
+shader_parameter/absorptionmultiplier = 0.12
 shader_parameter/AirIOR = 1.0
 shader_parameter/IOR = 1.33
 shader_parameter/sampler1speed = Vector2(0.02, 0)
@@ -72,53 +88,30 @@ shader_parameter/normal2tex = SubResource("normal2")
 shader_parameter/normalstrength = 1.0
 shader_parameter/height1tex = SubResource("height1")
 shader_parameter/height2tex = SubResource("height2")
-shader_parameter/heightstrength = 0.12
+shader_parameter/heightstrength = 0.08
 shader_parameter/edge1tex = SubResource("edge1")
 shader_parameter/edge2tex = SubResource("edge2")
 shader_parameter/refraction_type = 1
 shader_parameter/simple_refraction_amount = 0.1
-shader_parameter/traced_refraction_far_clip = 50.0
-shader_parameter/traced_refraction_steps = 512
+shader_parameter/traced_refraction_far_clip = 30.0
+shader_parameter/traced_refraction_steps = 64
 shader_parameter/edge_size = 0.1
 shader_parameter/foam_or_fade = false
 shader_parameter/ssr_type = 2
-shader_parameter/traced_ssr_far_clip = 50.0
-shader_parameter/traced_ssr_steps = 512
+shader_parameter/traced_ssr_far_clip = 30.0
+shader_parameter/traced_ssr_steps = 64
 shader_parameter/ssr_screen_fade = 0.05
 
 [sub_resource type="PlaneMesh" id="water_mesh"]
 material = SubResource("water_mat")
-size = Vector2(60, 60)
-subdivide_width = 120
-subdivide_depth = 120
+size = Vector2(24.04, 14.04)
+subdivide_width = 48
+subdivide_depth = 28
 
-[sub_resource type="StandardMaterial3D" id="floor_mat"]
-albedo_color = Color(0.76, 0.68, 0.5, 1)
-
-[sub_resource type="PlaneMesh" id="floor_mesh"]
-material = SubResource("floor_mat")
-size = Vector2(60, 60)
-
-[sub_resource type="StandardMaterial3D" id="fish_mat"]
-albedo_color = Color(1, 0.45, 0.1, 1)
-roughness = 0.4
-
-[sub_resource type="SphereMesh" id="fish_body"]
-material = SubResource("fish_mat")
-radius = 0.25
-height = 0.5
-
-[sub_resource type="PrismMesh" id="fish_tail"]
-material = SubResource("fish_mat")
-size = Vector3(0.4, 0.35, 0.05)
-
-[sub_resource type="StandardMaterial3D" id="eye_mat"]
-albedo_color = Color(0.05, 0.05, 0.05, 1)
-
-[sub_resource type="SphereMesh" id="fish_eye"]
-material = SubResource("eye_mat")
-radius = 0.04
-height = 0.08
+[sub_resource type="ShaderMaterial" id="under_mat"]
+shader = ExtResource("7_under")
+shader_parameter/tint = Color(0.6, 0.85, 0.9, 1)
+shader_parameter/strength = 0.0
 
 [node name="Main" type="Node3D"]
 
@@ -126,46 +119,55 @@ height = 0.08
 environment = SubResource("env")
 
 [node name="Sun" type="DirectionalLight3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 0.5, 0.866025, 0, -0.866025, 0.5, 0, 10, 0)
+transform = Transform3D(1, 0, 0, 0, 0.258819, 0.965926, 0, -0.965926, 0.258819, 0, 10, 0)
+light_color = Color(0.9, 0.97, 1, 1)
+light_energy = 1.3
 shadow_enabled = true
+directional_shadow_mode = 0
+directional_shadow_max_distance = 30.0
 
 [node name="Water" type="MeshInstance3D" parent="."]
+cast_shadow = 0
 mesh = SubResource("water_mesh")
 
-[node name="Floor" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -10, 0)
-mesh = SubResource("floor_mesh")
+[node name="Aquarium" type="Node3D" parent="."]
+script = ExtResource("5_aquarium")
 
 [node name="Fish" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -2, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -3, 2)
 script = ExtResource("2_fish")
 
-[node name="Body" type="MeshInstance3D" parent="Fish"]
-transform = Transform3D(0.7, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0)
-mesh = SubResource("fish_body")
-
-[node name="Tail" type="MeshInstance3D" parent="Fish"]
-transform = Transform3D(0, 0, -1, 1, 0, 0, 0, -1, 0, 0, 0, 0.6)
-mesh = SubResource("fish_tail")
-
-[node name="EyeL" type="MeshInstance3D" parent="Fish"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.15, 0.08, -0.32)
-mesh = SubResource("fish_eye")
-
-[node name="EyeR" type="MeshInstance3D" parent="Fish"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.15, 0.08, -0.32)
-mesh = SubResource("fish_eye")
+[node name="Model" type="MeshInstance3D" parent="Fish"]
+script = ExtResource("4_model")
 
 [node name="CameraPivot" type="Node3D" parent="."]
 top_level = true
 
 [node name="SpringArm3D" type="SpringArm3D" parent="CameraPivot"]
 spring_length = 4.0
+margin = 0.3
 
-[node name="Camera3D" type="Camera3D" parent="CameraPivot/SpringArm3D"]
+[node name="Camera3D" type="Camera3D" parent="CameraPivot/SpringArm3D" node_paths=PackedStringArray("world_env", "overlay")]
 current = true
+script = ExtResource("6_cam")
+world_env = NodePath("../../../WorldEnvironment")
+overlay = NodePath("../../../UnderwaterLayer/Overlay")
+
+[node name="UnderwaterLayer" type="CanvasLayer" parent="."]
+
+[node name="Overlay" type="ColorRect" parent="UnderwaterLayer"]
+visible = false
+material = SubResource("under_mat")
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
 
 [node name="TouchLayer" type="CanvasLayer" parent="."]
+layer = 2
 
 [node name="TouchUI" type="Control" parent="TouchLayer"]
 layout_mode = 3
