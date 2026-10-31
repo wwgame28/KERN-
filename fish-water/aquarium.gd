@@ -6,6 +6,7 @@ const FLOOR_Y := -8.0
 const TOP_Y := 3.0
 const GROUND_SHADER := preload("res://ground.gdshader")
 const PLANT_SHADER := preload("res://plant.gdshader")
+const WALL_SHADER := preload("res://wall.gdshader")
 
 var detail_tex: NoiseTexture2D
 var caustic_tex: NoiseTexture2D
@@ -21,9 +22,8 @@ func _ready() -> void:
 	_build_ground()
 	_build_rocks()
 	_build_plants()
-	_build_glass()
-	_build_frame()
-	_build_backdrop()
+	_build_walls()
+	_build_rim()
 	_build_colliders()
 	_build_bubbles()
 	_build_dust()
@@ -149,92 +149,40 @@ func _build_plants() -> void:
 	add_child(mmi)
 
 
-func _build_glass() -> void:
-	var mat := StandardMaterial3D.new()
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color = Color(0.75, 0.9, 0.95, 0.06)
-	mat.roughness = 0.02
-	mat.metallic_specular = 1.0
-	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	var height := TOP_Y - FLOOR_Y + 0.6
-	var cy := (TOP_Y + FLOOR_Y - 0.6) * 0.5
-	var t := 0.06
+func _build_walls() -> void:
+	var mat := ShaderMaterial.new()
+	mat.shader = WALL_SHADER
+	mat.set_shader_parameter("caustic_tex", caustic_tex)
+	mat.set_shader_parameter("floor_level", FLOOR_Y)
+	var t := 0.5
+	var height := TOP_Y - FLOOR_Y + 2.0
+	var cy := (TOP_Y + FLOOR_Y - 2.0) * 0.5
 	for z in [-1.0, 1.0]:
 		var box := BoxMesh.new()
-		box.size = Vector3(HALF_X * 2.0, height, t)
-		_add_mesh(box, Transform3D(Basis(), Vector3(0, cy, z * (HALF_Z + t * 0.5))), mat, false)
+		box.size = Vector3(HALF_X * 2.0 + t * 2.0, height, t)
+		_add_mesh(box, Transform3D(Basis(), Vector3(0, cy, z * (HALF_Z + t * 0.5))), mat)
 	for x in [-1.0, 1.0]:
 		var box := BoxMesh.new()
 		box.size = Vector3(t, height, HALF_Z * 2.0)
-		_add_mesh(box, Transform3D(Basis(), Vector3(x * (HALF_X + t * 0.5), cy, 0)), mat, false)
+		_add_mesh(box, Transform3D(Basis(), Vector3(x * (HALF_X + t * 0.5), cy, 0)), mat)
 
 
-func _build_frame() -> void:
+func _build_rim() -> void:
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.03, 0.03, 0.035)
-	mat.roughness = 0.4
-	var w := HALF_X * 2.0 + 0.6
-	var d := HALF_Z * 2.0 + 0.6
-	var bar := 0.3
-	for y in [FLOOR_Y - 0.6 - bar * 0.5, TOP_Y + bar * 0.5]:
-		for z in [-1.0, 1.0]:
-			var box := BoxMesh.new()
-			box.size = Vector3(w, bar, bar)
-			_add_mesh(box, Transform3D(Basis(), Vector3(0, y, z * (HALF_Z + bar * 0.5))), mat, false)
-		for x in [-1.0, 1.0]:
-			var box := BoxMesh.new()
-			box.size = Vector3(bar, bar, d)
-			_add_mesh(box, Transform3D(Basis(), Vector3(x * (HALF_X + bar * 0.5), y, 0)), mat, false)
-	var post := BoxMesh.new()
-	post.size = Vector3(bar, TOP_Y - FLOOR_Y + 0.6, bar)
+	mat.albedo_color = Color(0.86, 0.82, 0.74)
+	mat.roughness = 0.6
+	var w := HALF_X * 2.0 + 2.0
+	var d := HALF_Z * 2.0 + 2.0
+	var depth := 0.6
+	var y := TOP_Y + 0.1
+	for z in [-1.0, 1.0]:
+		var box := BoxMesh.new()
+		box.size = Vector3(w, 0.2, depth)
+		_add_mesh(box, Transform3D(Basis(), Vector3(0, y, z * (HALF_Z + depth * 0.5 - 0.05))), mat)
 	for x in [-1.0, 1.0]:
-		for z in [-1.0, 1.0]:
-			_add_mesh(post, Transform3D(Basis(), Vector3(x * (HALF_X + bar * 0.5), (TOP_Y + FLOOR_Y - 0.6) * 0.5, z * (HALF_Z + bar * 0.5))), mat, false)
-
-	# Sand bed underside, lid with lamp and the stand.
-	var slab := BoxMesh.new()
-	slab.size = Vector3(w, 0.6, d)
-	_add_mesh(slab, Transform3D(Basis(), Vector3(0, FLOOR_Y - 0.3, 0)), mat, false)
-	var lid := BoxMesh.new()
-	lid.size = Vector3(w, 0.4, d)
-	_add_mesh(lid, Transform3D(Basis(), Vector3(0, TOP_Y + 0.5, 0)), mat, false)
-	var stand := BoxMesh.new()
-	stand.size = Vector3(w + 1.0, 8.0, d + 1.0)
-	var wood := StandardMaterial3D.new()
-	wood.albedo_color = Color(0.18, 0.11, 0.07)
-	wood.roughness = 0.7
-	_add_mesh(stand, Transform3D(Basis(), Vector3(0, FLOOR_Y - 0.6 - 0.3 - 4.0, 0)), wood, false)
-
-	var lamp_mat := StandardMaterial3D.new()
-	lamp_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	lamp_mat.albedo_color = Color(0.85, 0.95, 1.0)
-	var lamp := BoxMesh.new()
-	lamp.size = Vector3(HALF_X * 1.7, 0.05, 0.8)
-	_add_mesh(lamp, Transform3D(Basis(), Vector3(0, TOP_Y + 0.28, 0)), lamp_mat, false)
-
-
-func _build_backdrop() -> void:
-	var shader := Shader.new()
-	shader.code = """
-shader_type spatial;
-render_mode unshaded;
-uniform sampler2D noise : filter_linear_mipmap, repeat_enable;
-void fragment() {
-	float y = 1.0 - UV.y;
-	vec3 c = mix(vec3(0.0, 0.05, 0.12), vec3(0.05, 0.35, 0.5), y);
-	float hills = texture(noise, vec2(UV.x * 0.6, 0.3)).r * 0.45 + 0.05;
-	float hills2 = texture(noise, vec2(UV.x * 1.3 + 0.4, 0.7)).r * 0.3;
-	c = mix(c, c * 0.45, step(y, hills));
-	c = mix(c, c * 0.6, step(y, hills2));
-	ALBEDO = c;
-}
-"""
-	var mat := ShaderMaterial.new()
-	mat.shader = shader
-	mat.set_shader_parameter("noise", detail_tex)
-	var quad := QuadMesh.new()
-	quad.size = Vector2(HALF_X * 2.0, TOP_Y - FLOOR_Y + 0.6)
-	_add_mesh(quad, Transform3D(Basis(), Vector3(0, (TOP_Y + FLOOR_Y - 0.6) * 0.5, -HALF_Z - 0.2)), mat, false)
+		var box := BoxMesh.new()
+		box.size = Vector3(depth, 0.2, d - depth * 2.0)
+		_add_mesh(box, Transform3D(Basis(), Vector3(x * (HALF_X + depth * 0.5 - 0.05), y, 0)), mat)
 
 
 func _build_colliders() -> void:
