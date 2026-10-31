@@ -1,7 +1,8 @@
-[gd_scene load_steps=24 format=3]
+[gd_scene load_steps=25 format=3]
 
 [ext_resource type="Shader" path="res://water.gdshader" id="1_water"]
 [ext_resource type="Script" path="res://fish.gd" id="2_fish"]
+[ext_resource type="Script" path="res://touch_ui.gd" id="3_touch"]
 
 [sub_resource type="ProceduralSkyMaterial" id="sky_mat"]
 sky_top_color = Color(0.25, 0.5, 0.85, 1)
@@ -163,3 +164,15 @@ spring_length = 4.0
 
 [node name="Camera3D" type="Camera3D" parent="CameraPivot/SpringArm3D"]
 current = true
+
+[node name="TouchLayer" type="CanvasLayer" parent="."]
+
+[node name="TouchUI" type="Control" parent="TouchLayer"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("3_touch")

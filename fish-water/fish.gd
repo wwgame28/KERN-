@@ -9,6 +9,7 @@ extends Node3D
 
 @onready var pivot: Node3D = $"../CameraPivot"
 @onready var arm: SpringArm3D = $"../CameraPivot/SpringArm3D"
+@onready var touch: TouchUI = $"../TouchLayer/TouchUI"
 
 var yaw := 0.0
 var pitch := -0.3
@@ -16,7 +17,11 @@ var velocity := Vector3.ZERO
 
 
 func _ready() -> void:
-	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	if DisplayServer.is_touchscreen_available():
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	else:
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+		touch.hide()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -43,6 +48,12 @@ func _physics_process(delta: float) -> void:
 	if Input.is_physical_key_pressed(KEY_D): dir += basis_cam.x
 	if Input.is_physical_key_pressed(KEY_SPACE): dir += Vector3.UP
 	if Input.is_physical_key_pressed(KEY_CTRL) or Input.is_physical_key_pressed(KEY_C): dir += Vector3.DOWN
+	dir += basis_cam.x * touch.move.x + basis_cam.z * touch.move.y
+	if touch.up: dir += Vector3.UP
+	if touch.down: dir += Vector3.DOWN
+	var look: Vector2 = touch.consume_look()
+	yaw -= look.x
+	pitch = clamp(pitch - look.y, -1.4, 1.4)
 	dir = dir.normalized()
 
 	var target_speed := speed * (boost if Input.is_physical_key_pressed(KEY_SHIFT) else 1.0)
