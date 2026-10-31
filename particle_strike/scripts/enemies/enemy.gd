@@ -299,7 +299,7 @@ func _die() -> void:
 	rig.set_tint(Color(0, 0, 0, 0))
 	rig.shatter(gw.debris, 16.0 if is_boss else 10.0, 1400 if is_boss else 240)
 	gw.fx.flash(center(), hit_radius * 2.5, glow, 0.3)
-	gw.debris.burst(center(), 40, glow, 7.0, 0.05, true, 2.0)
+	gw.debris.burst(center(), 80, glow, 7.0, 0.017, true, 2.0)
 	if is_boss or type == "brute":
 		gw.fx.ring(global_position + Vector3.UP * 0.2, hit_radius * 4.0, glow, 0.6)
 		gw.add_shake(0.35 if is_boss else 0.15)
@@ -344,7 +344,7 @@ func _slam() -> void:
 	var glow: Color = def["glow"]
 	gw.fx.ring(p, r * 1.4, glow, 0.5)
 	gw.fx.flash(p, r * 0.6, glow, 0.2)
-	gw.debris.burst(p, 70, Color(0.7, 0.6, 0.5), 8.0, 0.06, false, 4.0)
+	gw.debris.burst(p, 140, Color(0.7, 0.6, 0.5), 8.0, 0.021, false, 4.0)
 	gw.add_shake(0.3 * gw._shake_falloff(p) + 0.1)
 	Sfx.play_at("explosion", p, -4.0)
 
@@ -371,7 +371,7 @@ func _physics_process(delta: float) -> void:
 		burn_t -= delta
 		hp -= (22.0 if is_boss else 9.0) * delta
 		if randf() < 0.35:
-			gw.debris.spawn(center() + Vector3(randf_range(-0.4, 0.4), randf_range(-0.3, 0.5), randf_range(-0.4, 0.4)), Vector3(0, 3, 0), Color(1.0, 0.5, 0.1), 0.05, true)
+			gw.debris.spawn(center() + Vector3(randf_range(-0.4, 0.4), randf_range(-0.3, 0.5), randf_range(-0.4, 0.4)), Vector3(0, 3, 0), Color(1.0, 0.5, 0.1), 0.017, true)
 		if hp <= 0.0:
 			_die()
 			return

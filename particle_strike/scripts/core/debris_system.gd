@@ -1,12 +1,15 @@
 class_name DebrisSystem
 extends MultiMeshInstance3D
-## Кольцевой буфер обломков. Физика целиком в шейдере (debris.gdshader),
-## поэтому тысячи частиц стоят ~0 мс CPU: запись данных только в момент появления.
+## Кольцевой буфер обломков-микрочастиц. Физика целиком в шейдере (debris.gdshader),
+## поэтому десятки тысяч частиц стоят ~0 мс CPU. Новые частицы пишутся в копию буфера
+## в памяти, а на видеокарту уходит одна загрузка за кадр (а не 3 вызова на частицу).
 
 var capacity := 4000
 var cursor := 0
 var clock := 0.0
 var mat: ShaderMaterial
+var buf := PackedFloat32Array()
+var _dirty := false
 
 
 func setup(cap: int, gravity: float, ground_y: float) -> void:
@@ -23,7 +26,7 @@ func setup(cap: int, gravity: float, ground_y: float) -> void:
 	material_override = mat
 	m.instance_count = capacity
 	# 12 (transform) + 4 (color) + 4 (custom) float на экземпляр
-	var buf := PackedFloat32Array()
+	buf = PackedFloat32Array()
 	buf.resize(capacity * 20)
 	buf.fill(0.0)
 	for i in capacity:
@@ -41,17 +44,30 @@ func setup(cap: int, gravity: float, ground_y: float) -> void:
 func _process(delta: float) -> void:
 	clock += delta
 	mat.set_shader_parameter("u_time", clock)
+	if _dirty:
+		_dirty = false
+		multimesh.buffer = buf
 
 
 func spawn(pos: Vector3, vel: Vector3, col: Color, size: float, hot: bool = false) -> void:
-	var i := cursor
+	# базис у всех экземпляров единичный и не меняется — пишем только позицию, цвет и данные
+	var o := cursor * 20
 	cursor = (cursor + 1) % capacity
-	var a := clampf(size, 0.01, 0.98) * 0.5
+	var a := clampf(size, 0.004, 0.98) * 0.5
 	if hot:
 		a += 0.5
-	multimesh.set_instance_transform(i, Transform3D(Basis(), pos))
-	multimesh.set_instance_color(i, Color(col.r, col.g, col.b, a))
-	multimesh.set_instance_custom_data(i, Color(vel.x, vel.y, vel.z, clock))
+	buf[o + 3] = pos.x
+	buf[o + 7] = pos.y
+	buf[o + 11] = pos.z
+	buf[o + 12] = col.r
+	buf[o + 13] = col.g
+	buf[o + 14] = col.b
+	buf[o + 15] = a
+	buf[o + 16] = vel.x
+	buf[o + 17] = vel.y
+	buf[o + 18] = vel.z
+	buf[o + 19] = clock
+	_dirty = true
 
 
 func burst(pos: Vector3, count: int, col: Color, speed: float, size: float, hot: bool = true, up_bias: float = 2.0) -> void:

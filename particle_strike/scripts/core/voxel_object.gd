@@ -1,7 +1,7 @@
 class_name VoxelObject
 extends Node3D
 ## Разрушаемый объект из частиц-вокселей.
-## * Логическая ячейка (обычно 25 см) рисуется шейдером как сетка частиц по 5 см.
+## * Логическая ячейка (обычно 25 см) рисуется шейдером как сетка 20×20 микрочастиц по 1.25 см.
 ## * Рендер: один MultiMesh на объект (1 draw call), удалённая ячейка = нулевой масштаб.
 ## * При разрушении ячейка рассыпается на несколько мелких частиц-обломков (GPU).
 ## * Коллизии: ячейки 4×4×4 вокселя -> BoxShape без отдельных нод; пустая ячейка отключается.
@@ -15,7 +15,8 @@ const CELL_SHIFT := 2
 const ZERO_T := Transform3D(Vector3.ZERO, Vector3.ZERO, Vector3.ZERO, Vector3.ZERO)
 const MAX_BURNING := 600
 ## Размер видимой частицы (м): шейдер дробит каждую ячейку на частицы этого размера.
-const PARTICLE := 0.05
+## 1.25 см — в 40 раз меньше исходных частиц 50 см.
+const PARTICLE := 0.0125
 ## Ячейка 0.5 м — эталон, под который считаются награды и комбо.
 const REF_VS := 0.5
 
@@ -534,7 +535,7 @@ func _remove_list(list: PackedInt32Array, center_w: Vector3, impulse: float, fx:
 	# бюджет мелких частиц-обломков на событие: мало ячеек — по несколько частиц
 	# на каждую, много ячеек — берём каждую k-ю
 	var budget: int = maxi(int(Perf.get_value("per_event")), 1)
-	var per := clampi(budget / maxi(n, 1), 1, 6)
+	var per := clampi(budget / maxi(n, 1), 1, 12)
 	var stride := maxi(1, ceili(float(n) / float(budget)))
 	var jitter := vs * 0.4
 	var bulk := n > 250
@@ -582,7 +583,7 @@ func _remove_list(list: PackedInt32Array, center_w: Vector3, impulse: float, fx:
 			for q in per:
 				var off := Vector3(randf_range(-jitter, jitter), randf_range(-jitter, jitter), randf_range(-jitter, jitter))
 				var vel := dir * impulse * randf_range(0.4, 1.25) + Vector3(randf_range(-1.8, 1.8), randf_range(1.5, 5.5), randf_range(-1.8, 1.8))
-				gw.debris.spawn(wp + off, vel, col, PARTICLE * randf_range(0.8, 1.7), (j + q) % 3 == 0)
+				gw.debris.spawn(wp + off, vel, col, PARTICLE * randf_range(0.8, 2.2), (j + q) % 3 == 0)
 	if bulk and removed_count > 0:
 		mm.buffer = cpu_buf
 	if gw and award and removed_count > 0:
@@ -655,7 +656,7 @@ func _process(delta: float) -> void:
 		if gw:
 			for k in mini(done.size(), 6):
 				var wp := voxel_world_pos(done[k])
-				gw.debris.spawn(wp, Vector3(randf_range(-1, 1), randf_range(2, 5), randf_range(-1, 1)), Color(1.0, 0.5, 0.1), PARTICLE * 1.4, true)
+				gw.debris.spawn(wp, Vector3(randf_range(-1, 1), randf_range(2, 5), randf_range(-1, 1)), Color(1.0, 0.5, 0.1), PARTICLE * 2.0, true)
 		_remove_list(done, center_world(), 1.0, false, true)
 
 

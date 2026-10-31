@@ -116,7 +116,7 @@ func _spawn(t: String) -> void:
 	gw.fx.ring(Vector3(pos.x, 0.15, pos.z), 2.0 if t != "boss" else 5.0, glow, 0.6)
 	for k in 10:
 		var off := Vector3(randf_range(-1.5, 1.5), randf_range(3.0, 6.0), randf_range(-1.5, 1.5))
-		gw.debris.spawn(pos + off, -off * 1.4, glow, 0.05, true)
+		gw.debris.spawn(pos + off, -off * 1.4, glow, 0.017, true)
 
 
 func _spawn_point(flying: bool, big: bool) -> Vector3:

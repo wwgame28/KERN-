@@ -260,7 +260,7 @@ func explode(pos: Vector3, radius: float, damage: float, element: int, team: int
 		Sfx.play_at("explosion", pos, -2.0 + radius)
 	else:
 		fx.flash(pos, radius * 0.9, col, 0.18)
-		debris.burst(pos, 24, col, radius * 4.0, 0.05, true, 2.0)
+		debris.burst(pos, 48, col, radius * 4.0, 0.017, true, 2.0)
 		Sfx.play_at("hit", pos)
 	add_shake(clampf(radius * 0.1, 0.05, 0.6) * _shake_falloff(pos))
 	if big_fx and radius >= 2.5 and _shake_falloff(pos) > 0.5:
@@ -281,7 +281,7 @@ func _shake_falloff(pos: Vector3) -> float:
 
 func splat(pos: Vector3, size: float, on_player: bool) -> void:
 	var c := Color(0.55, 1.0, 0.85)
-	debris.burst(pos, int(30 * size), c, 4.0 * size, 0.05, false, 2.0)
+	debris.burst(pos, int(60 * size), c, 4.0 * size, 0.018, false, 2.0)
 	fx.flash(pos, 0.5 * size, c, 0.15)
 	if not on_player and pos.y < 0.8:
 		add_puddle(pos, 0.9 * size, 4.0)
@@ -298,7 +298,7 @@ func big_splat(pos: Vector3, dmg: float) -> void:
 		if d < 3.4:
 			player.take_damage(dmg * (1.0 - d / 3.4 * 0.5), pos)
 			player.apply_slime(3.0)
-	debris.burst(pos, 160, c, 9.0, 0.06, false, 4.0)
+	debris.burst(pos, 320, c, 9.0, 0.021, false, 4.0)
 	fx.ring(pos + Vector3.UP * 0.1, 4.0, c, 0.6)
 	fx.flash(pos, 1.0, Color(c.r * 0.6, c.g * 0.6, c.b * 0.6), 0.2)
 	add_puddle(Vector3(pos.x, 0.0, pos.z), 2.8, 7.0)
@@ -493,7 +493,7 @@ func _update_vortex(delta: float) -> void:
 			var a := randf() * TAU
 			var off := Vector3(cos(a), randf_range(-0.4, 0.8), sin(a)) * randf_range(3.0, 7.0)
 			var tang := Vector3(-sin(a), 0, cos(a)) * 6.0
-			debris.spawn(_vortex_pos + off, -off * 1.3 + tang + Vector3.UP * 4.0, Color(0.7, 0.4, 1.0), 0.07, true)
+			debris.spawn(_vortex_pos + off, -off * 1.3 + tang + Vector3.UP * 4.0, Color(0.7, 0.4, 1.0), 0.025, true)
 		fx.flash(_vortex_pos, r * 0.6, Color(0.55, 0.25, 1.0), 0.15)
 	if _vortex_t >= 2.2:
 		_vortex_active = false

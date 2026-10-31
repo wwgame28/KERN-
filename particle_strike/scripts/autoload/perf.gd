@@ -7,13 +7,13 @@ signal preset_applied
 
 const PRESETS := [
 	{"name": "Низкое", "scale": 0.6, "msaa": false, "shadows": false, "glow": false,
-		"debris": 6000, "per_event": 450, "ambient": 60, "view": 120.0, "shadow_dist": 0.0},
+		"debris": 12000, "per_event": 900, "ambient": 60, "view": 120.0, "shadow_dist": 0.0},
 	{"name": "Среднее", "scale": 0.72, "msaa": false, "shadows": false, "glow": true,
-		"debris": 12000, "per_event": 800, "ambient": 120, "view": 160.0, "shadow_dist": 0.0},
+		"debris": 24000, "per_event": 1600, "ambient": 120, "view": 160.0, "shadow_dist": 0.0},
 	{"name": "Высокое", "scale": 0.82, "msaa": true, "shadows": false, "glow": true,
-		"debris": 20000, "per_event": 1300, "ambient": 200, "view": 200.0, "shadow_dist": 0.0},
+		"debris": 40000, "per_event": 2600, "ambient": 200, "view": 200.0, "shadow_dist": 0.0},
 	{"name": "Ультра", "scale": 1.0, "msaa": true, "shadows": true, "glow": true,
-		"debris": 32000, "per_event": 2000, "ambient": 260, "view": 240.0, "shadow_dist": 60.0},
+		"debris": 60000, "per_event": 4000, "ambient": 260, "view": 240.0, "shadow_dist": 60.0},
 ]
 
 const MIN_SCALE := 0.5

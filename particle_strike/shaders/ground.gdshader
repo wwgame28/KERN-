@@ -1,4 +1,4 @@
-// Земля из «частиц»: квадратные точки-пиксели с мерцанием, дороги для города.
+// Земля из микрочастиц: квадратные точки с мерцанием, дороги для города.
 // Узор гаснет с расстоянием (fwidth), чтобы не было муара на телефоне.
 shader_type spatial;
 render_mode diffuse_lambert, specular_schlick_ggx;
@@ -35,10 +35,16 @@ void fragment() {
 	float sq = 1.0 - smoothstep(dot_size, dot_size + 0.08, d);
 	float aa = clamp(1.6 - fwidth(p.x) * 2.5, 0.0, 1.0);
 	sq *= aa;
-	float tw = 0.5 + 0.5 * sin(TIME * (0.8 + h * 2.0) + h * 30.0);
-	vec3 col = base_color * (0.7 + 0.6 * h);
-	vec3 albedo = mix(base_color * contrast, col, sq);
-	vec3 em = dot_color * sq * dot_glow * (0.15 + 0.85 * tw * step(0.72, h));
+	// скопления частиц 4×4 — зерно и искры там, где отдельная частица меньше пикселя
+	vec2 pc = p * 0.25;
+	float hc = hash(floor(pc) + vec2(7.0, 3.0));
+	float aac = clamp(1.6 - fwidth(pc.x) * 2.5, 0.0, 1.0);
+	float hh = mix(mix(0.5, hc, aac), h, aa);
+	float tw = 0.5 + 0.5 * sin(TIME * (0.8 + hh * 2.0) + hh * 30.0);
+	vec3 col = base_color * (0.7 + 0.6 * hh);
+	vec3 albedo = mix(base_color * contrast, col, max(sq, (1.0 - aa) * aac * 0.6));
+	float lit = max(sq, (1.0 - aa) * aac * 0.5);
+	vec3 em = dot_color * lit * dot_glow * (0.15 + 0.85 * tw * step(0.72, hh));
 	if (road_spacing > 0.0) {
 		vec2 m = abs(mod(wpos.xz + road_spacing * 0.5, road_spacing) - road_spacing * 0.5);
 		float road = step(min(m.x, m.y), road_width * 0.5);

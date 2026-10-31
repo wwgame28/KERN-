@@ -157,7 +157,7 @@ func shatter() -> void:
 		return
 	var n := cell_count
 	var budget := maxi(int(Perf.get_value("per_event")) * 2, 1)
-	var per := clampi(budget / maxi(n, 1), 1, 4)
+	var per := clampi(budget / maxi(n, 1), 1, 8)
 	var jitter := vsize * 0.4
 	var xf := global_transform
 	var base_vel := linear_velocity * 0.35
@@ -184,7 +184,7 @@ func shatter() -> void:
 		for q in per:
 			var off := Vector3(randf_range(-jitter, jitter), randf_range(-jitter, jitter), randf_range(-jitter, jitter))
 			var vel := base_vel + out * randf_range(2.0, 7.5) + Vector3(randf_range(-1.0, 1.0), randf_range(2.0, 7.5), randf_range(-1.0, 1.0))
-			gw.debris.spawn(wp + off, vel, col, VoxelObject.PARTICLE * randf_range(0.8, 1.8), (k + q) % 4 == 0)
+			gw.debris.spawn(wp + off, vel, col, VoxelObject.PARTICLE * randf_range(0.8, 2.4), (k + q) % 4 == 0)
 	var w := weight()
 	gw.on_voxels_destroyed(n, value, center, false, w)
 	gw.on_chunk_impact(center, int(float(n) * w), explosive)

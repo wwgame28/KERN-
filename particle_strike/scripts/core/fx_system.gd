@@ -147,7 +147,7 @@ func explosion(pos: Vector3, radius: float, color: Color) -> void:
 	light(pos, color, 6.0, radius * 4.0, 0.35)
 	var gw := GameWorld.current
 	if gw:
-		gw.debris.burst(pos, int(clampf(radius * 45.0, 30.0, 220.0)), Color(1.0, 0.6, 0.2), radius * 4.0, 0.06, true, 3.0)
+		gw.debris.burst(pos, int(clampf(radius * 90.0, 60.0, 440.0)), Color(1.0, 0.6, 0.2), radius * 4.0, 0.021, true, 3.0)
 
 
 func _start(it: FxItem, pos: Vector3, s0: float, s1: float, color: Color, life: float) -> void:

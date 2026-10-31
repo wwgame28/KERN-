@@ -91,7 +91,7 @@ static func _build_city(ctx: Ctx) -> void:
 	})
 	# земля из частиц по 5 см + дороги
 	LevelEnv.make_ground(gw, {
-		"base_color": Color(0.05, 0.055, 0.08), "dot_color": Color(0.35, 0.55, 1.0), "dot_scale": 20.0,
+		"base_color": Color(0.05, 0.055, 0.08), "dot_color": Color(0.35, 0.55, 1.0), "dot_scale": 80.0,
 		"dot_glow": 0.4, "dot_size": 0.3, "contrast": 0.55, "roughness_val": 0.22, "metallic_val": 0.35,
 		"road_spacing": 36.0, "road_width": 10.0, "road_color": Color(0.02, 0.02, 0.035),
 		"line_color": Color(1.0, 0.75, 0.3),

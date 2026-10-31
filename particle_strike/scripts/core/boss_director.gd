@@ -59,7 +59,7 @@ func _spawn() -> void:
 	gw.fx.ring(Vector3(pos.x, 0.15, pos.z), 7.0, glow, 0.9)
 	for k in 60:
 		var off := Vector3(randf_range(-3.0, 3.0), randf_range(3.0, 9.0), randf_range(-3.0, 3.0))
-		gw.debris.spawn(pos + off, -off * 1.4, glow, 0.06, true)
+		gw.debris.spawn(pos + off, -off * 1.4, glow, 0.021, true)
 	gw.notify.emit("БОСС: " + String(Enemy.TYPES[BOSS_TYPE]["name"]).to_upper(), Color(1.0, 0.5, 0.8))
 	gw.add_shake(0.4)
 	gw.slowmo(0.6, 0.4)

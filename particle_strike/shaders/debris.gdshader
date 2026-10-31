@@ -13,6 +13,8 @@ uniform float gravity = 20.0;
 uniform float ground_y = 0.0;
 uniform float life = 3.2;
 uniform float bounce = 0.32;
+// Минимальный видимый размер (рад): микрочастица вдали не исчезает, а становится «пылинкой» ~1.5 px.
+uniform float min_px_angle = 0.0015;
 
 varying vec3 v_col;
 varying float v_heat;
@@ -64,7 +66,9 @@ void vertex() {
 		vec3 ax = normalize(vec3(h - 0.5, fract(h * 7.31) - 0.5, fract(h * 3.17) - 0.5) + vec3(0.001));
 		mat3 R = rot_axis(ax, spin_t * (4.0 + 8.0 * h));
 		float shrink = clamp((lf - t) / 0.6, 0.0, 1.0);
-		VERTEX = R * (VERTEX * size * shrink) + off;
+		float dist = length(origin + off - CAMERA_POSITION_WORLD);
+		float vis = max(size, dist * min_px_angle);
+		VERTEX = R * (VERTEX * vis * shrink) + off;
 		v_heat = hot * clamp(1.0 - t / 0.9, 0.0, 1.0);
 	}
 }

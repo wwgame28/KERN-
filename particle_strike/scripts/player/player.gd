@@ -380,7 +380,7 @@ func _physics_process(delta: float) -> void:
 		velocity = dash_dir * DASH_SPEED
 		velocity.y = 0.0
 		for k in 3:
-			gw.debris.spawn(global_position + Vector3(randf_range(-0.3, 0.3), randf_range(0.3, 1.7), randf_range(-0.3, 0.3)), -dash_dir * 3.0 + Vector3.UP, Color(0.3, 0.75, 1.0), 0.05, true)
+			gw.debris.spawn(global_position + Vector3(randf_range(-0.3, 0.3), randf_range(0.3, 1.7), randf_range(-0.3, 0.3)), -dash_dir * 3.0 + Vector3.UP, Color(0.3, 0.75, 1.0), 0.017, true)
 	else:
 		var target := wish * speed
 		var accel := 12.0 if is_on_floor() else 4.0
@@ -408,7 +408,7 @@ func _physics_process(delta: float) -> void:
 			velocity.y = JUMP_V * 0.92
 			jumps_left -= 1
 			jump_buffer = 0.0
-			gw.debris.burst(global_position + Vector3.UP * 0.2, 40, Color(0.35, 0.85, 1.0), 4.0, 0.05, true, -4.0)
+			gw.debris.burst(global_position + Vector3.UP * 0.2, 80, Color(0.35, 0.85, 1.0), 4.0, 0.018, true, -4.0)
 			gw.fx.ring(global_position + Vector3.UP * 0.1, 1.2, Color(0.35, 0.85, 1.0), 0.3)
 			Sfx.play("jump", -3.0)
 
@@ -431,7 +431,7 @@ func _physics_process(delta: float) -> void:
 	if on_floor and not was_on_floor:
 		land_squash = clampf(-last_vy / 16.0, 0.15, 1.0)
 		if last_vy < -9.0:
-			gw.debris.burst(global_position + Vector3.UP * 0.1, 24, Color(0.6, 0.7, 0.9), 3.0, 0.045, false, 1.0)
+			gw.debris.burst(global_position + Vector3.UP * 0.1, 48, Color(0.6, 0.7, 0.9), 3.0, 0.016, false, 1.0)
 	was_on_floor = on_floor
 
 	# щит восстанавливается, если давно не получали урон
@@ -453,7 +453,7 @@ func _physics_process(delta: float) -> void:
 	trail_t -= delta
 	if on_floor and Vector2(velocity.x, velocity.z).length() > 4.0 and trail_t <= 0.0:
 		trail_t = 0.07
-		gw.debris.spawn(global_position + Vector3(randf_range(-0.2, 0.2), 0.15, randf_range(-0.2, 0.2)), Vector3(0, 1.2, 0), Color(0.3, 0.7, 1.0), 0.04, false)
+		gw.debris.spawn(global_position + Vector3(randf_range(-0.2, 0.2), 0.15, randf_range(-0.2, 0.2)), Vector3(0, 1.2, 0), Color(0.3, 0.7, 1.0), 0.014, false)
 
 
 func _process(delta: float) -> void:

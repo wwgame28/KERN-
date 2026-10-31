@@ -181,13 +181,13 @@ func _physics_process(delta: float) -> void:
 			p.trail_t += delta
 			if p.trail_t > 0.02:
 				p.trail_t = 0.0
-				gw.debris.spawn(p.pos - p.vel.normalized() * 0.4, Vector3(randf_range(-1, 1), randf_range(0, 1.5), randf_range(-1, 1)), Color(1.0, 0.5, 0.2), 0.06, true)
+				gw.debris.spawn(p.pos - p.vel.normalized() * 0.4, Vector3(randf_range(-1, 1), randf_range(0, 1.5), randf_range(-1, 1)), Color(1.0, 0.5, 0.2), 0.021, true)
 		elif p.kind == "spit" or p.kind == "big_spit":
 			# капли слюны срываются с летящего плевка; размер «дрожит»
 			p.trail_t += delta
 			if p.trail_t > (0.03 if p.kind == "big_spit" else 0.07):
 				p.trail_t = 0.0
-				gw.debris.spawn(p.pos, p.vel * 0.15 + Vector3(randf_range(-0.6, 0.6), -1.0, randf_range(-0.6, 0.6)), p.color, 0.05 if p.kind == "spit" else 0.09, false)
+				gw.debris.spawn(p.pos, p.vel * 0.15 + Vector3(randf_range(-0.6, 0.6), -1.0, randf_range(-0.6, 0.6)), p.color, 0.02 if p.kind == "spit" else 0.035, false)
 			p.node.scale *= 1.0 + 0.12 * sin(p.life * 40.0)
 
 
@@ -236,7 +236,7 @@ func _update_plasma(gw: GameWorld, p: Proj, next: Vector3) -> bool:
 		return true
 	p.pos = next
 	if randf() < 0.5:
-		gw.debris.spawn(next, Vector3(randf_range(-2, 2), randf_range(-1, 2), randf_range(-2, 2)), p.color, 0.05, false)
+		gw.debris.spawn(next, Vector3(randf_range(-2, 2), randf_range(-1, 2), randf_range(-2, 2)), p.color, 0.017, false)
 	return false
 
 
@@ -281,7 +281,7 @@ func _impact(gw: GameWorld, p: Proj, hit: Dictionary) -> void:
 			elif obj:
 				obj.damage_sphere(hp, p.radius, clampf(p.damage / 60.0, 0.2, 1.0), p.element, 6.0)
 			gw.fx.flash(hp, 0.35 + p.radius * 0.25, p.color, 0.1)
-			gw.debris.burst(hp, 10, p.color, 5.0, 0.045, false, 1.0)
+			gw.debris.burst(hp, 20, p.color, 5.0, 0.016, false, 1.0)
 
 
 func _chain(gw: GameWorld, from_enemy: Enemy, dmg: float, color: Color) -> void:
@@ -322,7 +322,7 @@ func fire_laser(from: Vector3, dir: Vector3, damage: float, radius: float, pierc
 		else:
 			end = hp
 		gw.fx.flash(hp, 0.9, color, 0.2)
-		gw.debris.burst(hp, 36, color, 7.0, 0.05, true, 1.5)
+		gw.debris.burst(hp, 72, color, 7.0, 0.017, true, 1.5)
 	for e: Enemy in gw.enemies.duplicate():
 		if not e.is_alive():
 			continue
