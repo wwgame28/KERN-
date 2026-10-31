@@ -101,6 +101,14 @@ func spawn(kind: String, team: int, pos: Vector3, vel: Vector3, damage: float, r
 			p.size = 0.28
 			p.stretch = 1.3
 			p.life = 5.0
+		"spit":
+			p.size = 0.32
+			p.stretch = 1.6
+			p.life = 4.0
+		"big_spit":
+			p.size = 0.95
+			p.stretch = 1.35
+			p.life = 5.0
 		_:
 			p.size = 0.09 if element != WeaponData.Element.ICE else 0.12
 			p.stretch = 6.0
@@ -147,6 +155,14 @@ func _physics_process(delta: float) -> void:
 				var near := _proximity_enemy(gw, p.pos, seg_end, _proximity(p))
 				if near:
 					hit = {"position": near.center() - p.vel.normalized() * near.hit_radius * 0.5, "enemy": near, "normal": -p.vel.normalized(), "object": null}
+			elif p.team == 1 and hit.is_empty() and gw.player and gw.player.is_alive():
+				# снаряды врагов чуть «толще» — от плевков надо уворачиваться, а не проскальзывать
+				var pc := gw.player.global_position + Vector3.UP * 0.9
+				var ab := next - p.pos
+				var tt := clampf((pc - p.pos).dot(ab) / maxf(ab.length_squared(), 0.0001), 0.0, 1.0)
+				var pr := 0.85 if p.kind == "big_spit" else 0.4
+				if pc.distance_to(p.pos + ab * tt) < 0.4 + pr:
+					hit = {"position": p.pos + ab * tt, "player": true, "normal": -p.vel.normalized(), "object": null}
 			if not hit.is_empty():
 				_impact(gw, p, hit)
 				done = true
@@ -166,6 +182,13 @@ func _physics_process(delta: float) -> void:
 			if p.trail_t > 0.02:
 				p.trail_t = 0.0
 				gw.debris.spawn(p.pos - p.vel.normalized() * 0.4, Vector3(randf_range(-1, 1), randf_range(0, 1.5), randf_range(-1, 1)), Color(1.0, 0.5, 0.2), 0.06, true)
+		elif p.kind == "spit" or p.kind == "big_spit":
+			# капли слюны срываются с летящего плевка; размер «дрожит»
+			p.trail_t += delta
+			if p.trail_t > (0.03 if p.kind == "big_spit" else 0.07):
+				p.trail_t = 0.0
+				gw.debris.spawn(p.pos, p.vel * 0.15 + Vector3(randf_range(-0.6, 0.6), -1.0, randf_range(-0.6, 0.6)), p.color, 0.05 if p.kind == "spit" else 0.09, false)
+			p.node.scale *= 1.0 + 0.12 * sin(p.life * 40.0)
 
 
 func _proximity(p: Proj) -> float:
@@ -237,6 +260,16 @@ func _impact(gw: GameWorld, p: Proj, hit: Dictionary) -> void:
 			elif obj:
 				obj.damage_sphere(hp, 0.7, 0.3, WeaponData.Element.NONE, 4.0)
 			gw.fx.flash(hp, 0.6, p.color, 0.15)
+		"spit":
+			var on_player := bool(hit.get("player", false))
+			if on_player:
+				gw.player.take_damage(p.damage, p.pos)
+				gw.player.apply_slime(1.8)
+			elif obj:
+				obj.damage_sphere(hp, 0.35, 0.5, WeaponData.Element.NONE, 2.0)
+			gw.splat(hp, 1.0, on_player)
+		"big_spit":
+			gw.big_splat(hp, p.damage)
 		_:
 			if p.element == WeaponData.Element.EXPLOSIVE:
 				gw.explode(hp, p.radius, p.damage, WeaponData.Element.EXPLOSIVE, p.team, false)

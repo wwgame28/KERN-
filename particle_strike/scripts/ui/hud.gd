@@ -20,6 +20,9 @@ var _shield := 50.0
 var _max_shield := 50.0
 var _shown_particles := 0.0
 var _tip := ""
+var _blobs: Array = []
+var _slime_t := 0.0
+var _slime_max := 1.0
 var _tip_t := 0.0
 
 
@@ -33,6 +36,7 @@ func setup(world: GameWorld, p: Player, c: TouchControls) -> void:
 	gw.hit_marker.connect(_on_hit)
 	gw.combo_changed.connect(_on_combo)
 	player.damaged.connect(_on_damaged)
+	player.slimed.connect(_on_slimed)
 	player.health_changed.connect(_on_health)
 	_on_health(player.hp, player.max_hp, player.shield, player.max_shield)
 	_shown_particles = float(GameState.particles)
@@ -64,6 +68,22 @@ func _on_combo(_c: int, _m: float) -> void:
 	_combo_pop = 1.0
 
 
+func _on_slimed(duration: float) -> void:
+	## Плевок попал в «камеру»: капли слюны на экране, стекают и высыхают.
+	_slime_t = duration
+	_slime_max = duration
+	var vp := get_viewport_rect().size
+	var u := controls.u if controls else 1.0
+	for k in randi_range(4, 7):
+		var edge := randf() < 0.7
+		var p := Vector2(randf_range(0.05, 0.95) * vp.x, randf_range(0.05, 0.7) * vp.y)
+		if edge:
+			p = Vector2(randf_range(0.0, 0.3) * vp.x if randf() < 0.5 else randf_range(0.7, 1.0) * vp.x, randf_range(0.0, 0.8) * vp.y)
+		_blobs.append({"p": p, "r": randf_range(28.0, 85.0) * u, "drip": randf_range(40.0, 140.0) * u})
+	while _blobs.size() > 14:
+		_blobs.pop_front()
+
+
 func _on_damaged(from_pos: Vector3) -> void:
 	_dmg_t = 0.9
 	_dmg_from = from_pos
@@ -82,6 +102,10 @@ func _process(delta: float) -> void:
 	_dmg_t = maxf(_dmg_t - delta, 0.0)
 	_combo_pop = maxf(_combo_pop - delta * 4.0, 0.0)
 	_tip_t = maxf(_tip_t - delta, 0.0)
+	if _slime_t > 0.0:
+		_slime_t = maxf(_slime_t - delta, 0.0)
+		if _slime_t <= 0.0:
+			_blobs.clear()
 	for i in range(_notes.size() - 1, -1, -1):
 		_notes[i]["t"] = float(_notes[i]["t"]) - delta
 		if float(_notes[i]["t"]) <= 0.0:
@@ -144,12 +168,15 @@ func _draw() -> void:
 
 	# --- полоса босса
 	for e: Enemy in gw.enemies:
-		if e.type == "boss" and e.is_alive():
-			var w := vp.x * 0.4
+		if e.is_boss and e.is_alive():
+			var w := vp.x * 0.42
 			var x := (vp.x - w) * 0.5
-			draw_rect(Rect2(x, mt + 34.0 * u, w, 10.0 * u), Color(0.05, 0.02, 0.05, 0.7))
-			draw_rect(Rect2(x, mt + 34.0 * u, w * clampf(e.hp / e.max_hp, 0.0, 1.0), 10.0 * u), Color(1.0, 0.2, 0.5))
-			_text(font, Vector2(x, mt + 60.0 * u), "КОЛОСС", int(13 * u), Color(1.0, 0.5, 0.7), HORIZONTAL_ALIGNMENT_CENTER, w)
+			var by := mt + 36.0 * u
+			var bar_col := Color(1.0, 0.25, 0.45) if e.phase2 else Color(1.0, 0.45, 0.75)
+			draw_rect(Rect2(x, by, w, 12.0 * u), Color(0.05, 0.02, 0.05, 0.75))
+			draw_rect(Rect2(x, by, w * clampf(e.hp / e.max_hp, 0.0, 1.0), 12.0 * u), bar_col)
+			draw_rect(Rect2(x, by, w, 12.0 * u), Color(1, 1, 1, 0.35), false, 1.5)
+			_text(font, Vector2(x, by + 30.0 * u), "БОСС: " + String(e.def["name"]).to_upper(), int(15 * u), Color(1.0, 0.7, 0.88), HORIZONTAL_ALIGNMENT_CENTER, w)
 			break
 
 	# --- миникарта
@@ -177,7 +204,7 @@ func _draw() -> void:
 		var sp2 := Vector2(rel2.dot(rt), -rel2.dot(f)) * map_scale
 		if sp2.length() > mrad - 5.0 * u:
 			sp2 = sp2.normalized() * (mrad - 5.0 * u)
-		var er := (5.0 if e.type == "boss" else 3.0) * u
+		var er := (6.0 if e.is_boss else 3.0) * u
 		draw_circle(mc + sp2, er, Color(1.0, 0.25, 0.3, 0.95))
 	draw_colored_polygon(PackedVector2Array([mc + Vector2(0, -7) * u, mc + Vector2(5, 5) * u, mc + Vector2(-5, 5) * u]), Color(0.5, 0.9, 1.0))
 
@@ -228,6 +255,21 @@ func _draw() -> void:
 		var c: Color = n["color"]
 		_text(font, Vector2(0, ny), String(n["text"]), int(26 * u), Color(c.r, c.g, c.b, a2), HORIZONTAL_ALIGNMENT_CENTER, vp.x)
 		ny += 34.0 * u
+
+	# --- потёки слюны на экране
+	if _slime_t > 0.0 and not _blobs.is_empty():
+		var sa := clampf(_slime_t / _slime_max, 0.0, 1.0)
+		var flow := 1.0 - sa
+		for b in _blobs:
+			var bp: Vector2 = b["p"]
+			var br: float = b["r"]
+			var dl: float = b["drip"] * flow
+			var sc := Color(0.55, 1.0, 0.85, 0.32 * sa)
+			draw_rect(Rect2(bp.x - br * 0.18, bp.y, br * 0.36, dl), sc)
+			draw_circle(bp + Vector2(0, dl), br * 0.2, sc)
+			draw_circle(bp, br, sc)
+			draw_circle(bp + Vector2(br * 0.35, br * 0.25), br * 0.45, Color(0.55, 1.0, 0.85, 0.22 * sa))
+			draw_circle(bp - Vector2(br, br) * 0.3, br * 0.18, Color(1, 1, 1, 0.35 * sa))
 
 	# --- подсказка обучения
 	if _tip_t > 0.0 and _tip != "":

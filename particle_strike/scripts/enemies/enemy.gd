@@ -2,7 +2,10 @@ class_name Enemy
 extends CharacterBody3D
 ## Враги из частиц. Типы: Рой (ближний бой), Стрелок (держит дистанцию),
 ## Громила (проламывает стены, удар-волна), Дрон (летает, стреляет сверху),
-## Колосс (босс каждые 5 волн). Статусы: заморозка, горение, отбрасывание.
+## Колосс (босс каждые 5 волн), Света Салеева (босс-плевальщица).
+## Статусы: заморозка, горение, отбрасывание.
+
+signal died(e: Enemy)
 
 const TYPES := {
 	"swarmer": {"name": "Рой", "hp": 34.0, "speed": 8.0, "damage": 7.0, "reward": 8,
@@ -15,6 +18,9 @@ const TYPES := {
 		"color": Color(0.12, 0.3, 0.45), "glow": Color(0.3, 0.95, 1.0), "radius": 0.6, "height": 1.2, "scale": 1.0},
 	"boss": {"name": "Колосс", "hp": 1900.0, "speed": 3.2, "damage": 40.0, "reward": 450,
 		"color": Color(0.3, 0.08, 0.3), "glow": Color(1.0, 0.2, 0.5), "radius": 1.4, "height": 4.6, "scale": 2.5},
+	"sveta": {"name": "Света Салеева", "hp": 4000.0, "speed": 2.9, "damage": 30.0, "reward": 300,
+		"color": Color(0.85, 0.3, 0.6), "glow": Color(0.5, 1.0, 0.85), "radius": 1.6, "height": 5.8, "scale": 3.2,
+		"boss": true},
 }
 
 var gw: GameWorld
@@ -46,6 +52,17 @@ var avoid_dir := Vector3.ZERO
 var smash_t := 0.0
 var orbit_a := 0.0
 var flying := false
+var is_boss := false
+# Света Салеева: очереди плевков, заряженный плевок, «слюнявый дождь», ярость
+var spit_left := 0
+var spit_t := 0.0
+var spit_mode := ""
+var spit_windup := 0.0
+var mouth_open := 0.0
+var phase2 := false
+var rain_targets: Array[Vector3] = []
+const SPIT_COLOR := Color(0.55, 1.0, 0.85)
+const SPIT_WINDUP := 0.7
 
 
 func setup(world: GameWorld, enemy_type: String, hp_mult: float) -> void:
@@ -58,6 +75,7 @@ func setup(world: GameWorld, enemy_type: String, hp_mult: float) -> void:
 	height = float(def["height"])
 	reward = int(def["reward"])
 	flying = type == "drone"
+	is_boss = type == "boss" or bool(def.get("boss", false))
 	collision_layer = GameWorld.L_ENEMY
 	collision_mask = GameWorld.L_WORLD | GameWorld.L_DESTRUCT | GameWorld.L_BOUNDS | GameWorld.L_ENEMY | GameWorld.L_PLAYER
 	if flying:
@@ -85,6 +103,8 @@ func setup(world: GameWorld, enemy_type: String, hp_mult: float) -> void:
 			rig = VoxelRig.build_crawler(col, glow, 0.1)
 		"drone":
 			rig = VoxelRig.build_drone(col, glow, 0.1)
+		"sveta":
+			rig = _build_sveta(col, float(def["scale"]))
 		_:
 			var sc := float(def["scale"])
 			rig = VoxelRig.build_humanoid(col, col.lightened(0.25), glow, sc, 0.09 * sc)
@@ -92,9 +112,139 @@ func setup(world: GameWorld, enemy_type: String, hp_mult: float) -> void:
 				VoxelRig.build_gun(rig, "arm_r", glow, "plasma", -0.58 * sc)
 	body_root.add_child(rig)
 	body_root.scale = Vector3.ONE * 0.05
+	if is_boss:
+		var label := Label3D.new()
+		label.text = String(def["name"])
+		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		label.no_depth_test = true
+		label.font_size = 40
+		label.fixed_size = true
+		label.pixel_size = 0.0012
+		label.outline_size = 10
+		label.modulate = Color(1.0, 0.65, 0.85)
+		label.position = Vector3(0, height + 0.9, 0)
+		add_child(label)
 	orbit_a = randf() * TAU
 	strafe_dir = 1.0 if randf() < 0.5 else -1.0
 	attack_cd = randf_range(1.0, 2.0)
+
+
+func _build_sveta(col: Color, s: float) -> VoxelRig:
+	## Модель Светы: длинные светлые волосы, платье, светящийся «слюнявый» рот.
+	var r := VoxelRig.build_humanoid(col, Color(0.98, 0.78, 0.82), Color(0.4, 0.85, 1.0), s, 0.09 * s)
+	var hair := Color(0.92, 0.74, 0.4, 0.12)
+	r.add_part("hair", "head", Vector3.ZERO, [
+		[Vector3(-0.19, 0.24, -0.2) * s, Vector3(0.19, 0.38, 0.17) * s, hair],
+		[Vector3(-0.21, -0.02, -0.21) * s, Vector3(-0.15, 0.3, 0.12) * s, hair],
+		[Vector3(0.15, -0.02, -0.21) * s, Vector3(0.21, 0.3, 0.12) * s, hair],
+		[Vector3(-0.19, -0.6, -0.25) * s, Vector3(0.19, 0.26, -0.15) * s, hair],
+	])
+	r.add_part("mouth", "head", Vector3(0, 0.07 * s, 0.17 * s), [
+		[Vector3(-0.07, -0.03, -0.01) * s, Vector3(0.07, 0.03, 0.04) * s, Color(SPIT_COLOR.r, SPIT_COLOR.g, SPIT_COLOR.b, 1.0)],
+	], false)
+	r.add_part("dress", "hips", Vector3.ZERO, [
+		[Vector3(-0.32, -0.55, -0.25) * s, Vector3(0.32, 0.12, 0.25) * s, Color(col.r, col.g, col.b, 0.3)],
+		[Vector3(-0.34, -0.6, -0.27) * s, Vector3(0.34, -0.5, 0.27) * s, Color(1.0, 0.7, 0.9, 0.8)],
+	])
+	return r
+
+
+func _mouth_pos() -> Vector3:
+	var m := rig.part("mouth")
+	if m:
+		return m.global_position + body_root.global_transform.basis.z.normalized() * 0.5
+	return center() + Vector3.UP * height * 0.4
+
+
+func _spit_at(target: Vector3, kind: String, flight_t: float, dmg: float) -> void:
+	## Баллистический плевок: подбираем скорость, чтобы попасть в точку с учётом гравитации.
+	var from := _mouth_pos()
+	var g := 14.0
+	var d := target - from
+	var t := flight_t if flight_t > 0.0 else clampf(Vector2(d.x, d.z).length() / 20.0, 0.45, 1.6)
+	var v := d / t + Vector3(0.0, 0.5 * g * t, 0.0)
+	# снаряд темнее капель: иначе слюна светится, как плазма
+	var p := gw.projectiles.spawn(kind, 1, from, v, dmg, 1.0 if kind == "spit" else 3.2, WeaponData.Element.NONE, Color(0.33, 0.62, 0.52))
+	p.gravity = g
+	mouth_open = 1.6
+	Sfx.play_at("spit", from, -3.0)
+
+
+func _sveta_ai(delta: float, pl: Player, dist: float, dir_flat: Vector3) -> Vector3:
+	var speed := float(def["speed"]) * (1.3 if phase2 else 1.0)
+	if not phase2 and hp < max_hp * 0.5:
+		phase2 = true
+		rig.set_tint(Color(1.0, 0.25, 0.45, 0.22))
+		gw.notify.emit("СВЕТА САЛЕЕВА В ЯРОСТИ!", Color(1.0, 0.45, 0.65))
+		gw.slowmo(0.5, 0.4)
+		Sfx.play_at("vortex", center())
+		attack_cd = 0.6
+	var cd_mult := 0.65 if phase2 else 1.0
+	mouth_open = maxf(mouth_open - delta * 3.0, 0.0)
+	# очередь плевков / дождь
+	if spit_left > 0:
+		spit_t -= delta
+		if spit_t <= 0.0:
+			spit_t = 0.09 if phase2 else 0.13
+			spit_left -= 1
+			if spit_mode == "rain" and not rain_targets.is_empty():
+				_spit_at(rain_targets.pop_back(), "spit", 1.25, float(def["damage"]) * 0.3)
+			else:
+				var lead := pl.global_position + Vector3.UP + pl.velocity * 0.45
+				lead += Vector3(randf_range(-1.2, 1.2), randf_range(-0.3, 0.6), randf_range(-1.2, 1.2))
+				_spit_at(lead, "spit", -1.0, float(def["damage"]) * 0.35)
+		return Vector3.ZERO
+	# заряженный плевок: голова назад, рот раскрывается
+	if spit_windup > 0.0:
+		spit_windup -= delta
+		mouth_open = 1.0 + (SPIT_WINDUP - spit_windup) * 1.5
+		if spit_windup <= 0.0:
+			_spit_at(pl.global_position + Vector3.UP * 0.4 + pl.velocity * 0.5, "big_spit", -1.0, float(def["damage"]))
+		return Vector3.ZERO
+	if windup > 0.0:
+		windup -= delta
+		if windup <= 0.0:
+			_slam()
+		return Vector3.ZERO
+	strafe_t -= delta
+	if strafe_t <= 0.0:
+		strafe_t = randf_range(2.0, 3.5)
+		strafe_dir = -strafe_dir
+	var side := dir_flat.cross(Vector3.UP) * strafe_dir
+	var want := side * speed * 0.6
+	if dist > 18.0:
+		want = dir_flat * speed
+	elif dist < 8.0:
+		want = -dir_flat * speed * 0.6 + side * speed * 0.5
+	if attack_cd <= 0.0 and dist < 55.0:
+		if dist < 5.0:
+			windup = 0.65
+			attack_cd = 2.0 * cd_mult
+		else:
+			var r := randf()
+			if r < 0.55:
+				spit_mode = "volley"
+				spit_left = 8 if phase2 else 6
+				spit_t = 0.0
+				attack_cd = 2.4 * cd_mult
+			elif r < 0.8:
+				spit_windup = SPIT_WINDUP
+				attack_cd = 3.0 * cd_mult
+				Sfx.play_at("hurt", center(), 2.0)
+			else:
+				spit_mode = "rain"
+				spit_left = 12 if phase2 else 9
+				spit_t = 0.25
+				attack_cd = 3.4 * cd_mult
+				rain_targets.clear()
+				for k in spit_left:
+					var a := randf() * TAU
+					var rr := randf_range(0.5, 7.0)
+					var tp := Vector3(pl.global_position.x + cos(a) * rr, 0.1, pl.global_position.z + sin(a) * rr)
+					rain_targets.append(tp)
+					gw.fx.ring(tp, 1.1, SPIT_COLOR, 1.4)
+				gw.notify.emit("СЛЮНЯВЫЙ ДОЖДЬ!", SPIT_COLOR)
+	return want
 
 
 func center() -> Vector3:
@@ -110,7 +260,7 @@ func is_alive() -> bool:
 func knockback(v: Vector3) -> void:
 	if state == "dead":
 		return
-	knock += v * (0.25 if type == "boss" else (0.5 if type == "brute" else 1.0))
+	knock += v * (0.25 if is_boss else (0.5 if type == "brute" else 1.0))
 
 
 func take_damage(amount: float, element: int, dir: Vector3, _pos: Vector3) -> void:
@@ -121,18 +271,18 @@ func take_damage(amount: float, element: int, dir: Vector3, _pos: Vector3) -> vo
 		a *= 1.8
 	match element:
 		WeaponData.Element.ICE:
-			var resist := 1.4 if type == "boss" else (0.7 if type == "brute" else 0.35)
+			var resist := 1.4 if is_boss else (0.7 if type == "brute" else 0.35)
 			freeze += amount / (max_hp * resist)
 			if freeze >= 1.0 and frozen_t <= 0.0:
-				frozen_t = 1.5 if type == "boss" else 2.6
+				frozen_t = 1.5 if is_boss else 2.6
 				freeze = 0.0
 				rig.set_tint(Color(0.6, 0.92, 1.0, 0.75))
 				Sfx.play_at("freeze", center())
 		WeaponData.Element.EXPLOSIVE, WeaponData.Element.FIRE:
-			burn_t = 1.5 if type == "boss" else 3.0
+			burn_t = 1.5 if is_boss else 3.0
 	hp -= a
 	flash = 1.0
-	if type != "boss":
+	if not is_boss:
 		knock += dir * clampf(a / max_hp * 14.0, 0.4, 5.0)
 	gw.hit_marker.emit(false)
 	if hp <= 0.0:
@@ -147,15 +297,19 @@ func _die() -> void:
 	collision_mask = 0
 	var glow: Color = def["glow"]
 	rig.set_tint(Color(0, 0, 0, 0))
-	rig.shatter(gw.debris, 10.0 if type != "boss" else 16.0, 700 if type == "boss" else 240)
+	rig.shatter(gw.debris, 16.0 if is_boss else 10.0, 1400 if is_boss else 240)
 	gw.fx.flash(center(), hit_radius * 2.5, glow, 0.3)
 	gw.debris.burst(center(), 40, glow, 7.0, 0.05, true, 2.0)
-	if type == "boss" or type == "brute":
+	if is_boss or type == "brute":
 		gw.fx.ring(global_position + Vector3.UP * 0.2, hit_radius * 4.0, glow, 0.6)
-		gw.add_shake(0.35 if type == "boss" else 0.15)
+		gw.add_shake(0.35 if is_boss else 0.15)
+	if is_boss:
+		gw.fx.explosion(center(), 4.0, glow)
+		gw.slowmo(0.8, 0.3)
 	Sfx.play_at("death", center())
 	gw.on_enemy_killed(self)
 	gw.enemies.erase(self)
+	died.emit(self)
 	queue_free()
 
 
@@ -180,7 +334,7 @@ func _shoot_orb(target: Vector3, speed: float, dmg: float) -> void:
 
 func _slam() -> void:
 	var p := global_position + Vector3.UP * 0.3
-	var r := 4.5 if type == "boss" else 3.6
+	var r := 4.5 if is_boss else 3.6
 	for obj: VoxelObject in gw.objects_near(p, r):
 		obj.damage_sphere(p, r * 0.7, 0.9, WeaponData.Element.NONE, 10.0)
 	var pl := gw.player
@@ -215,7 +369,7 @@ func _physics_process(delta: float) -> void:
 
 	if burn_t > 0.0:
 		burn_t -= delta
-		hp -= (22.0 if type == "boss" else 9.0) * delta
+		hp -= (22.0 if is_boss else 9.0) * delta
 		if randf() < 0.35:
 			gw.debris.spawn(center() + Vector3(randf_range(-0.4, 0.4), randf_range(-0.3, 0.5), randf_range(-0.4, 0.4)), Vector3(0, 3, 0), Color(1.0, 0.5, 0.1), 0.05, true)
 		if hp <= 0.0:
@@ -279,6 +433,8 @@ func _physics_process(delta: float) -> void:
 						for k in 7:
 							var off := dir_flat.rotated(Vector3.UP, (float(k) - 3.0) * 0.12)
 							_shoot_orb(global_position + off * dist + Vector3.UP * 1.0, 18.0, 14.0)
+			"sveta":
+				want = _sveta_ai(delta, pl, dist, dir_flat)
 			"drone":
 				orbit_a += delta * 0.6
 				var goal := pl.global_position + Vector3(cos(orbit_a), 0, sin(orbit_a)) * 11.0 + Vector3.UP * 7.5
@@ -293,8 +449,8 @@ func _physics_process(delta: float) -> void:
 	if not flying and want.length() > 0.1:
 		if is_on_wall():
 			stuck_t += delta
-			if type == "brute" or type == "boss":
-				# громилы проламывают стены
+			if type == "brute" or is_boss:
+				# громилы и боссы проламывают стены
 				smash_t -= delta
 				if smash_t <= 0.0:
 					smash_t = 0.45
@@ -304,7 +460,7 @@ func _physics_process(delta: float) -> void:
 					gw.add_shake(0.08 * gw._shake_falloff(front))
 			elif is_on_floor() and stuck_t > 0.15:
 				velocity.y = 8.0
-			if stuck_t > 0.5 and avoid_t <= 0.0 and type != "brute" and type != "boss":
+			if stuck_t > 0.5 and avoid_t <= 0.0 and type != "brute" and not is_boss:
 				avoid_t = 0.9
 				avoid_dir = dir_flat.cross(Vector3.UP) * (1.0 if randf() < 0.5 else -1.0)
 		else:
@@ -313,7 +469,7 @@ func _physics_process(delta: float) -> void:
 			avoid_t -= delta
 			want = (want.normalized() * 0.3 + avoid_dir).normalized() * speed
 
-	if windup > 0.0 or frozen_t > 0.0:
+	if windup > 0.0 or frozen_t > 0.0 or spit_windup > 0.0:
 		want = Vector3.ZERO
 
 	var blend := 1.0 - exp(-8.0 * delta)
@@ -350,3 +506,13 @@ func _physics_process(delta: float) -> void:
 				rig.part("arm_l").rotation.x = -PI * 0.95 * k2
 				rig.part("arm_r").rotation.x = -PI * 0.95 * k2
 				rig.part("torso").rotation.x = -0.3 * k2
+			if type == "sveta":
+				var mth := rig.part("mouth")
+				if mth:
+					mth.scale = Vector3(1.0 + mouth_open * 0.35, 1.0 + mouth_open * 1.8, 1.0)
+				if spit_windup > 0.0:
+					var k3 := 1.0 - spit_windup / SPIT_WINDUP
+					rig.part("head").rotation.x = -0.55 * k3
+					rig.part("torso").rotation.x = -0.25 * k3
+				elif mouth_open > 1.2:
+					rig.part("head").rotation.x = 0.25

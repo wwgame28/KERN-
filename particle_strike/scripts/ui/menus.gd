@@ -7,6 +7,7 @@ signal start_location(id: String)
 signal resume_requested
 signal quit_requested
 signal retry_requested
+signal summon_boss_requested
 
 var bg: Control
 var center: CenterContainer
@@ -373,6 +374,7 @@ func show_pause() -> void:
 	_label("ПАУЗА", 40, Color(0.45, 0.85, 1.0))
 	_label("Частицы: %d" % GameState.particles, 20, Color(0.7, 0.95, 1.0))
 	_button("Продолжить", _emit_resume)
+	_button("Вызвать босса: Света Салеева", _emit_summon)
 	_button("Улучшения", _open_shop_pause)
 	_button("Настройки", _open_settings_pause)
 	_button("Выйти в меню", _emit_quit)
@@ -406,6 +408,10 @@ func _shop_from_game_over() -> void:
 
 func _emit_resume() -> void:
 	resume_requested.emit()
+
+
+func _emit_summon() -> void:
+	summon_boss_requested.emit()
 
 
 func _emit_quit() -> void:

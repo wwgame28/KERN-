@@ -45,6 +45,10 @@ var shake := 0.0
 var game_over := false
 
 var _collapse_queue: Array[VoxelObject] = []
+## Лужи слюны: [позиция, радиус, осталось, полное время, нода]
+var _puddles: Array = []
+var _puddle_mesh: CylinderMesh
+var _puddle_mat: StandardMaterial3D
 var _chunk_queue: Array = []
 var _pending_explosions: Array = []
 var _slowmo_left := 0.0
@@ -273,6 +277,88 @@ func _shake_falloff(pos: Vector3) -> float:
 	return clampf(1.0 - player.global_position.distance_to(pos) / 45.0, 0.0, 1.0)
 
 
+# ---------------------------------------------------------------- слюна (босс)
+
+func splat(pos: Vector3, size: float, on_player: bool) -> void:
+	var c := Color(0.55, 1.0, 0.85)
+	debris.burst(pos, int(30 * size), c, 4.0 * size, 0.05, false, 2.0)
+	fx.flash(pos, 0.5 * size, c, 0.15)
+	if not on_player and pos.y < 0.8:
+		add_puddle(pos, 0.9 * size, 4.0)
+	Sfx.play_at("splat", pos, -4.0)
+
+
+func big_splat(pos: Vector3, dmg: float) -> void:
+	## Заряженный плевок: кислотная слюна разъедает стены, обливает и замедляет.
+	var c := Color(0.55, 1.0, 0.85)
+	for obj: VoxelObject in objects_near(pos, 2.4):
+		obj.damage_sphere(pos, 2.2, 0.9, WeaponData.Element.NONE, 4.0)
+	if player and player.is_alive():
+		var d := player.global_position.distance_to(pos)
+		if d < 3.4:
+			player.take_damage(dmg * (1.0 - d / 3.4 * 0.5), pos)
+			player.apply_slime(3.0)
+	debris.burst(pos, 160, c, 9.0, 0.06, false, 4.0)
+	fx.ring(pos + Vector3.UP * 0.1, 4.0, c, 0.6)
+	fx.flash(pos, 1.0, Color(c.r * 0.6, c.g * 0.6, c.b * 0.6), 0.2)
+	add_puddle(Vector3(pos.x, 0.0, pos.z), 2.8, 7.0)
+	add_shake(0.25 * _shake_falloff(pos))
+	Sfx.play_at("splat", pos, 3.0)
+
+
+func add_puddle(pos: Vector3, radius: float, life: float) -> void:
+	if _puddle_mesh == null:
+		_puddle_mesh = CylinderMesh.new()
+		_puddle_mesh.top_radius = 1.0
+		_puddle_mesh.bottom_radius = 1.0
+		_puddle_mesh.height = 0.04
+		_puddle_mesh.radial_segments = 20
+		_puddle_mesh.rings = 1
+		_puddle_mat = StandardMaterial3D.new()
+		_puddle_mat.albedo_color = Color(0.5, 0.95, 0.8, 0.55)
+		_puddle_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_puddle_mat.roughness = 0.05
+		_puddle_mat.metallic = 0.3
+		_puddle_mat.emission_enabled = true
+		_puddle_mat.emission = Color(0.15, 0.4, 0.33)
+		_puddle_mesh.material = _puddle_mat
+	if _puddles.size() >= 12:
+		var old: Array = _puddles.pop_front()
+		(old[4] as Node).queue_free()
+	var mi := MeshInstance3D.new()
+	mi.mesh = _puddle_mesh
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(mi)
+	mi.global_position = Vector3(pos.x, 0.03, pos.z)
+	mi.scale = Vector3(radius * 0.3, 1.0, radius * 0.3)
+	_puddles.append([Vector3(pos.x, 0.0, pos.z), radius, life, life, mi])
+
+
+func slime_factor(pos: Vector3) -> float:
+	## Во всех лужах слюны бег замедляется вдвое.
+	for pd in _puddles:
+		var c: Vector3 = pd[0]
+		if Vector2(pos.x - c.x, pos.z - c.z).length() < float(pd[1]) and pos.y < 1.0:
+			return 0.5
+	return 1.0
+
+
+func _update_puddles(delta: float) -> void:
+	for i in range(_puddles.size() - 1, -1, -1):
+		var pd: Array = _puddles[i]
+		var left := float(pd[2]) - delta
+		pd[2] = left
+		var mi: MeshInstance3D = pd[4]
+		if left <= 0.0:
+			mi.queue_free()
+			_puddles.remove_at(i)
+			continue
+		var r := float(pd[1])
+		var age := float(pd[3]) - left
+		var k := minf(age / 0.25, 1.0) * minf(left / 1.0, 1.0)
+		mi.scale = Vector3(r * maxf(k, 0.05), 1.0, r * maxf(k, 0.05))
+
+
 # ---------------------------------------------------------------- награды и комбо
 
 func combo_mult() -> float:
@@ -456,6 +542,8 @@ func _process(delta: float) -> void:
 			combo_changed.emit(0, 1.0)
 	if _vortex_active:
 		_update_vortex(delta)
+	if not _puddles.is_empty():
+		_update_puddles(delta)
 	if player:
 		shards.update(delta, player.global_position, player.magnet_radius(), _collect)
 	shake = maxf(shake - delta * 1.6, 0.0)

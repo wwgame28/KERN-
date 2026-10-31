@@ -6,6 +6,7 @@ extends CharacterBody3D
 signal health_changed(hp: float, max_hp: float, shield: float, max_shield: float)
 signal weapon_changed(id: String)
 signal damaged(from_pos: Vector3)
+signal slimed(duration: float)
 
 const BASE_SPEED := 6.8
 const JUMP_V := 8.2
@@ -55,6 +56,8 @@ var trail_t := 0.0
 var _keys := {}
 var _shake_t := 0.0
 var _sway := Vector2.ZERO
+## Облит слюной босса: замедление и потёки на экране.
+var slime_t := 0.0
 
 
 func setup(world: GameWorld, touch: TouchControls) -> void:
@@ -275,6 +278,14 @@ func take_damage(amount: float, from_pos: Vector3) -> void:
 		_die()
 
 
+func apply_slime(duration: float) -> void:
+	if not alive:
+		return
+	slime_t = maxf(slime_t, duration)
+	slimed.emit(duration)
+	Sfx.vibrate(40)
+
+
 func heal(v: float) -> void:
 	hp = minf(max_hp, hp + v)
 	health_changed.emit(hp, max_hp, shield, max_shield)
@@ -351,6 +362,7 @@ func _physics_process(delta: float) -> void:
 	var right := Vector3(cos(yaw), 0.0, -sin(yaw))
 	var wish := right * input.x + fwd * input.y
 	var speed := BASE_SPEED * (1.0 + 0.08 * GameState.upgrade_level("speed")) * (0.6 if aiming else 1.0)
+	speed *= (0.55 if slime_t > 0.0 else 1.0) * gw.slime_factor(global_position)
 
 	# рывок
 	dash_cd -= delta
@@ -429,6 +441,7 @@ func _physics_process(delta: float) -> void:
 		shield = minf(max_shield, shield + 16.0 * delta)
 		health_changed.emit(hp, max_hp, shield, max_shield)
 	invuln = maxf(invuln - delta, 0.0)
+	slime_t = maxf(slime_t - delta, 0.0)
 
 	# упал с платформы / вылетел из мира
 	if global_position.y < -25.0:

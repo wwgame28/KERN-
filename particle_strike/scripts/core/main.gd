@@ -4,6 +4,7 @@ extends Node
 var world: GameWorld
 var player: Player
 var director: WaveDirector
+var boss_director: BossDirector
 var ui_layer: CanvasLayer
 var hud: HUD
 var controls: TouchControls
@@ -23,8 +24,15 @@ func _ready() -> void:
 	menus.resume_requested.connect(resume)
 	menus.quit_requested.connect(quit_to_menu)
 	menus.retry_requested.connect(_retry)
+	menus.summon_boss_requested.connect(_summon_boss)
 	menus.show_main()
 	Sfx.play_music("menu")
+
+
+func _summon_boss() -> void:
+	resume()
+	if is_instance_valid(boss_director):
+		boss_director.summon_now()
 
 
 func _retry() -> void:
@@ -63,6 +71,10 @@ func start_location(id: String) -> void:
 
 	# Волны врагов пока отключены — локация работает как песочница разрушений.
 	# Чтобы вернуть: создать WaveDirector, добавить в world и вызвать start(world).
+	boss_director = BossDirector.new()
+	boss_director.name = "Boss"
+	world.add_child(boss_director)
+	boss_director.start(world)
 
 	controls.setup(world, player)
 	hud.setup(world, player, controls)
@@ -87,6 +99,7 @@ func _run_tips() -> void:
 		"Стреляй в низ небоскрёба по кругу — верх рухнет целиком",
 		"Светящиеся частицы — валюта. Подходи ближе — магнит соберёт",
 		"Красные частицы в машинах и бочках взрываются цепочкой",
+		"Через минуту придёт босс — Света Салеева. От плевков спасает рывок!",
 		"Вихрь заряжается от разрушений. Стена стоит 40 частиц",
 	]
 	var w := world
@@ -113,6 +126,7 @@ func _teardown() -> void:
 	world = null
 	player = null
 	director = null
+	boss_director = null
 	await get_tree().process_frame
 	await get_tree().process_frame
 
