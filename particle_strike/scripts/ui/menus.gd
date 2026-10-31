@@ -185,42 +185,14 @@ func show_main() -> void:
 	_label("PARTICLE STRIKE", 54, Color(0.45, 0.85, 1.0))
 	_label("Мир из частиц. Разрушай всё.", 20, Color(1.0, 0.7, 0.4))
 	_label("Частицы: %d" % GameState.particles, 20, Color(0.7, 0.95, 1.0))
-	_button("ИГРАТЬ", show_locations)
+	_button("ИГРАТЬ", _play)
 	_button("УЛУЧШЕНИЯ", _open_shop_main)
 	_button("НАСТРОЙКИ", _open_settings_main)
 	_button("КАК ИГРАТЬ", show_help)
 
 
-func show_locations() -> void:
-	_clear()
-	_label("Выбор локации", 32, Color(0.45, 0.85, 1.0))
-	var grid := GridContainer.new()
-	grid.columns = 2
-	grid.add_theme_constant_override("h_separation", 12)
-	grid.add_theme_constant_override("v_separation", 12)
-	content.add_child(grid)
-	for id in GameState.LOCATIONS:
-		var unlocked := GameState.is_location_unlocked(id)
-		var title: String = GameState.LOCATION_NAMES[id]
-		if GameState.cleared_locations.has(id):
-			title += "  ★"
-		var best := int(GameState.best_wave.get(id, 0))
-		var txt := title + "\n" + String(GameState.LOCATION_DESC[id])
-		txt += "\nРекорд: волна %d" % best if unlocked else "\nЗакрыто: пройди %d волн на прошлой локации" % GameState.WAVES_TO_CLEAR
-		var b := Button.new()
-		b.text = txt
-		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		b.custom_minimum_size = Vector2(360, 150)
-		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		b.add_theme_font_size_override("font_size", 19)
-		b.disabled = not unlocked
-		var loc: String = id
-		var on_loc := func() -> void:
-			Sfx.play("ui")
-			start_location.emit(loc)
-		b.pressed.connect(on_loc)
-		grid.add_child(b)
-	_button("Назад", show_main)
+func _play() -> void:
+	start_location.emit("city")
 
 
 func show_shop(from_pause: bool) -> void:
@@ -357,13 +329,11 @@ func show_settings(from_pause: bool) -> void:
 	_toggle("120 FPS (ProMotion, сильнее греет телефон)", "fps120")
 	_toggle("Помощь в прицеливании", "aim_assist")
 	_toggle("Замедление времени при крупных разрушениях", "slowmo")
-	_toggle("Вид от первого лица", "first_person")
 	_toggle("Инверсия по вертикали", "invert_y")
 	_toggle("Звук", "sound")
 	_toggle("Музыка", "music")
 	_toggle("Вибрация", "vibration")
 	_toggle("Показывать FPS", "show_fps")
-	_toggle("Открыть все локации", "all_locations")
 	_slider("Чувствительность", "sensitivity", 0.3, 2.5, 0.05)
 	_slider("Тряска камеры", "shake", 0.0, 1.5, 0.05)
 	var rb := _button("Сбросить прогресс", _noop)
@@ -415,9 +385,10 @@ func show_game_over(stats: Dictionary, wave: int) -> void:
 	_wave = wave
 	_clear()
 	_label("ЧАСТИЦЫ РАССЕЯНЫ", 40, Color(1.0, 0.4, 0.4))
-	_label("Волна: %d" % wave, 24)
-	_label("Врагов уничтожено: %d" % int(stats.get("kills", 0)), 22)
-	_label("Частиц разрушено: %d" % int(stats.get("voxels", 0)), 22)
+	if wave > 0:
+		_label("Волна: %d" % wave, 24)
+		_label("Врагов уничтожено: %d" % int(stats.get("kills", 0)), 22)
+	_label("Разрушено: %d" % int(stats.get("voxels", 0)), 22)
 	_label("Частиц собрано: %d" % int(stats.get("particles", 0)), 22, Color(0.7, 0.95, 1.0))
 	_button("Ещё раз", _emit_retry)
 	_button("Улучшения", _shop_from_game_over)

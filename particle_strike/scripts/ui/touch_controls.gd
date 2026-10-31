@@ -2,9 +2,9 @@ class_name TouchControls
 extends Control
 ## Мультитач-управление: плавающий джойстик слева, обзор свайпом справа,
 ## кнопка огня (с ней же можно вести прицел), прицел, прыжок, рывок, вихрь, стена,
-## панель оружия, камера 1-е/3-е лицо и пауза. Учитывает «чёлку» и Dynamic Island.
+## панель оружия и пауза. Учитывает «чёлку» и Dynamic Island.
 
-const BTN_IDS := ["fire", "jump", "aim", "dash", "ability", "build", "pause", "camera"]
+const BTN_IDS := ["fire", "jump", "aim", "dash", "ability", "build", "pause"]
 
 var gw: GameWorld
 var player: Player
@@ -84,7 +84,6 @@ func _layout() -> void:
 		"ability": {"c": f + Vector2(-248, -18) * u, "r": 38.0 * u},
 		"build": {"c": f + Vector2(-238, -122) * u, "r": 32.0 * u},
 		"pause": {"c": Vector2(vp.x - margin_r - 172.0 * u, margin_t + 30.0 * u), "r": 24.0 * u},
-		"camera": {"c": Vector2(vp.x - margin_r - 228.0 * u, margin_t + 30.0 * u), "r": 24.0 * u},
 	}
 	joy_r = 70.0 * u
 	joy_home = Vector2(margin_l + 120.0 * u, vp.y - margin_b - 125.0 * u)
@@ -313,17 +312,12 @@ func _draw() -> void:
 			draw_rect(Rect2(bc + off - Vector2(br * 0.15, br * 0.13), Vector2(br * 0.3, br * 0.26)), Color(0.3, 0.95, 1.0, 0.9))
 	draw_string(font, bc + Vector2(-br, br + 14.0 * u), str(GameWorld.WALL_COST), HORIZONTAL_ALIGNMENT_CENTER, br * 2.0, int(13 * u), Color(0.6, 0.95, 1.0, 0.9))
 
-	# пауза и камера
+	# пауза
 	var pc: Vector2 = buttons["pause"]["c"]
 	var pr: float = buttons["pause"]["r"]
 	_btn_bg("pause", Color(0.8, 0.85, 1.0), false)
 	draw_rect(Rect2(pc + Vector2(-pr * 0.35, -pr * 0.4), Vector2(pr * 0.22, pr * 0.8)), white)
 	draw_rect(Rect2(pc + Vector2(pr * 0.13, -pr * 0.4), Vector2(pr * 0.22, pr * 0.8)), white)
-	var cc: Vector2 = buttons["camera"]["c"]
-	var cr: float = buttons["camera"]["r"]
-	_btn_bg("camera", Color(0.8, 0.85, 1.0), false)
-	var cam_txt := "1P" if player and player.first_person else "3P"
-	draw_string(font, cc + Vector2(-cr, cr * 0.32), cam_txt, HORIZONTAL_ALIGNMENT_CENTER, cr * 2.0, int(16 * u), white)
 
 	# оружие
 	for s in weapon_slots:

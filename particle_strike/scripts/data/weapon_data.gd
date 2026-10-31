@@ -21,7 +21,7 @@ const DEFS := {
 	"sniper": {
 		"name": "Снайпер", "sub": "лазер", "color": Color(0.78, 0.35, 1.0), "cost": 500,
 		"kind": "laser", "damage": 120.0, "radius": 0.6, "interval": 1.0, "heat": 0.34,
-		"speed": 0.0, "pellets": 1, "spread": 0.0, "element": Element.LASER, "pierce": 16,
+		"speed": 0.0, "pellets": 1, "spread": 0.0, "element": Element.LASER, "pierce": 6.0,
 		"hint": "Прожигает тоннель и пробивает врагов насквозь",
 	},
 	"rocket": {

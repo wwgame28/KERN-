@@ -15,14 +15,12 @@ func setup(cap: int, gravity: float, ground_y: float) -> void:
 	m.transform_format = MultiMesh.TRANSFORM_3D
 	m.use_colors = true
 	m.use_custom_data = true
-	var box := BoxMesh.new()
-	box.size = Vector3.ONE
 	mat = ShaderMaterial.new()
 	mat.shader = load("res://shaders/debris.gdshader")
 	mat.set_shader_parameter("gravity", gravity)
 	mat.set_shader_parameter("ground_y", ground_y)
-	box.material = mat
-	m.mesh = box
+	m.mesh = VoxelObject.make_cube_mesh()
+	material_override = mat
 	m.instance_count = capacity
 	# 12 (transform) + 4 (color) + 4 (custom) float на экземпляр
 	var buf := PackedFloat32Array()
@@ -48,7 +46,7 @@ func _process(delta: float) -> void:
 func spawn(pos: Vector3, vel: Vector3, col: Color, size: float, hot: bool = false) -> void:
 	var i := cursor
 	cursor = (cursor + 1) % capacity
-	var a := clampf(size, 0.04, 0.98) * 0.5
+	var a := clampf(size, 0.01, 0.98) * 0.5
 	if hot:
 		a += 0.5
 	multimesh.set_instance_transform(i, Transform3D(Basis(), pos))

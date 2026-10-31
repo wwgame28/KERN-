@@ -76,7 +76,7 @@ static func vary(mat: int, seed_idx: int) -> Color:
 	## Детерминированная вариация оттенка для каждой частицы.
 	var c: Color = COLORS[mat]
 	var h := ((seed_idx * 73856093) ^ (seed_idx >> 7) * 19349663) & 0xFFFF
-	var f := 0.82 + float(h % 1000) / 1000.0 * 0.3
+	var f := 0.93 + float(h % 1000) / 1000.0 * 0.14
 	var a := c.a
 	if mat == GLASS:
 		# часть окон тёмные, часть — холодный свет

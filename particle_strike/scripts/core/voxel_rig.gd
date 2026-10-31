@@ -75,6 +75,7 @@ func add_part(part_name: String, parent_name: String, pivot_pos: Vector3, boxes:
 		mm.buffer = buf
 	p.mmi = MultiMeshInstance3D.new()
 	p.mmi.multimesh = mm
+	p.mmi.set_instance_shader_parameter("sub", VoxelObject.sub_for(vsize))
 	p.mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	p.pivot.add_child(p.mmi)
 	parts[part_name] = p
@@ -122,7 +123,7 @@ func shatter(debris: DebrisSystem, impulse: float, max_points: int = 220) -> voi
 				continue
 			var wp := xf * pp.points[i]
 			var dir := (wp - center).normalized()
-			debris.spawn(wp, dir * impulse * randf_range(0.4, 1.0) + Vector3.UP * randf_range(2.0, 6.0), pp.cols[i], vsize * 1.3, i % 3 == 0)
+			debris.spawn(wp, dir * impulse * randf_range(0.4, 1.0) + Vector3.UP * randf_range(2.0, 6.0), pp.cols[i], VoxelObject.PARTICLE * 1.2, i % 3 == 0)
 	visible = false
 
 

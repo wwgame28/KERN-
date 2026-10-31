@@ -1,6 +1,6 @@
 class_name Player
 extends CharacterBody3D
-## Игрок из частиц. Камера от 3-го/1-го лица, бег, двойной прыжок, рывок с неуязвимостью,
+## Игрок из частиц. Вид от первого лица, бег, двойной прыжок, рывок с неуязвимостью,
 ## 6 видов оружия с перегревом, автоприцел для сенсорного управления, стены и гравивихрь.
 
 signal health_changed(hp: float, max_hp: float, shield: float, max_shield: float)
@@ -28,9 +28,8 @@ var yaw := 0.0
 var pitch := -0.1
 var cam_yaw: Node3D
 var cam_pitch: Node3D
-var spring: SpringArm3D
 var camera: Camera3D
-var first_person := false
+var first_person := true
 var aiming := false
 
 var rig: VoxelRig
@@ -55,6 +54,7 @@ var hit_flash := 0.0
 var trail_t := 0.0
 var _keys := {}
 var _shake_t := 0.0
+var _sway := Vector2.ZERO
 
 
 func setup(world: GameWorld, touch: TouchControls) -> void:
@@ -80,35 +80,27 @@ func setup(world: GameWorld, touch: TouchControls) -> void:
 	add_child(cam_yaw)
 	cam_pitch = Node3D.new()
 	cam_yaw.add_child(cam_pitch)
-	spring = SpringArm3D.new()
-	spring.spring_length = 3.8
-	spring.margin = 0.25
-	spring.collision_mask = GameWorld.L_WORLD | GameWorld.L_DESTRUCT
-	var sph := SphereShape3D.new()
-	sph.radius = 0.25
-	spring.shape = sph
-	spring.position = Vector3(1.05, 0.3, 0)
-	cam_pitch.add_child(spring)
-	spring.add_excluded_object(get_rid())
 	camera = Camera3D.new()
-	camera.fov = 72.0
-	camera.near = 0.08
+	camera.fov = 74.0
+	camera.near = 0.05
 	camera.far = 1500.0
-	spring.add_child(camera)
+	camera.position = Vector3(0, 0.1, 0)
+	cam_pitch.add_child(camera)
 	camera.current = true
 
 	viewmodel = VoxelRig.new()
-	viewmodel.vsize = 0.03
-	viewmodel.position = Vector3(0.24, -0.2, -0.42)
-	viewmodel.rotation_degrees = Vector3(-2.0, 186.0, 0.0)
-	viewmodel.scale = Vector3.ONE * 0.65
+	viewmodel.vsize = 0.022
+	viewmodel.position = Vector3(0.2, -0.17, -0.36)
+	viewmodel.rotation_degrees = Vector3(-2.0, 183.0, 0.0)
+	viewmodel.scale = Vector3.ONE * 0.5
 	camera.add_child(viewmodel)
 
 	for id in WeaponData.ORDER:
 		heat[id] = 0.0
 		overheated[id] = false
 	apply_upgrades()
-	set_first_person(bool(GameState.get_setting("first_person", false)))
+	# модель тела нужна только для распада на частицы при смерти
+	rig.visible = false
 	equip("pistol")
 
 
@@ -126,12 +118,6 @@ func magnet_radius() -> float:
 
 func is_alive() -> bool:
 	return alive
-
-
-func set_first_person(on: bool) -> void:
-	first_person = on
-	rig.visible = not on
-	viewmodel.visible = on
 
 
 # ---------------------------------------------------------------- оружие
@@ -167,8 +153,7 @@ func cycle_weapon() -> void:
 
 
 func muzzle_position() -> Vector3:
-	var r := viewmodel if first_person else rig
-	var g := r.part("gun")
+	var g := viewmodel.part("gun")
 	if g == null:
 		return camera.global_position
 	return g.global_transform * (g.get_meta("muzzle", Vector3(0, 0, 0.5)) as Vector3)
@@ -216,7 +201,7 @@ func _fire() -> void:
 	var elem: int = def["element"]
 	match String(def["kind"]):
 		"laser":
-			gw.projectiles.fire_laser(muzzle, dir, dmg, rad, int(def.get("pierce", 12)), col)
+			gw.projectiles.fire_laser(muzzle, dir, dmg, rad, float(def.get("pierce", 6.0)), col)
 			gw.add_shake(0.12)
 		"rocket":
 			gw.projectiles.spawn("rocket", 0, muzzle, dir * float(def["speed"]), dmg, rad, elem, col)
@@ -330,8 +315,6 @@ func _unhandled_input(event: InputEvent) -> void:
 				_keys["ability"] = true
 			KEY_E:
 				_keys["build"] = true
-			KEY_V:
-				_keys["camera"] = true
 			KEY_R:
 				aiming = not aiming
 			KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6:
@@ -385,7 +368,7 @@ func _physics_process(delta: float) -> void:
 		velocity = dash_dir * DASH_SPEED
 		velocity.y = 0.0
 		for k in 3:
-			gw.debris.spawn(global_position + Vector3(randf_range(-0.3, 0.3), randf_range(0.3, 1.7), randf_range(-0.3, 0.3)), -dash_dir * 3.0 + Vector3.UP, Color(0.3, 0.75, 1.0), 0.09, true)
+			gw.debris.spawn(global_position + Vector3(randf_range(-0.3, 0.3), randf_range(0.3, 1.7), randf_range(-0.3, 0.3)), -dash_dir * 3.0 + Vector3.UP, Color(0.3, 0.75, 1.0), 0.05, true)
 	else:
 		var target := wish * speed
 		var accel := 12.0 if is_on_floor() else 4.0
@@ -413,7 +396,7 @@ func _physics_process(delta: float) -> void:
 			velocity.y = JUMP_V * 0.92
 			jumps_left -= 1
 			jump_buffer = 0.0
-			gw.debris.burst(global_position + Vector3.UP * 0.2, 14, Color(0.35, 0.85, 1.0), 4.0, 0.1, true, -4.0)
+			gw.debris.burst(global_position + Vector3.UP * 0.2, 40, Color(0.35, 0.85, 1.0), 4.0, 0.05, true, -4.0)
 			gw.fx.ring(global_position + Vector3.UP * 0.1, 1.2, Color(0.35, 0.85, 1.0), 0.3)
 			Sfx.play("jump", -3.0)
 
@@ -436,7 +419,7 @@ func _physics_process(delta: float) -> void:
 	if on_floor and not was_on_floor:
 		land_squash = clampf(-last_vy / 16.0, 0.15, 1.0)
 		if last_vy < -9.0:
-			gw.debris.burst(global_position + Vector3.UP * 0.1, 8, Color(0.6, 0.7, 0.9), 3.0, 0.08, false, 1.0)
+			gw.debris.burst(global_position + Vector3.UP * 0.1, 24, Color(0.6, 0.7, 0.9), 3.0, 0.045, false, 1.0)
 	was_on_floor = on_floor
 
 	# щит восстанавливается, если давно не получали урон
@@ -457,7 +440,7 @@ func _physics_process(delta: float) -> void:
 	trail_t -= delta
 	if on_floor and Vector2(velocity.x, velocity.z).length() > 4.0 and trail_t <= 0.0:
 		trail_t = 0.07
-		gw.debris.spawn(global_position + Vector3(randf_range(-0.2, 0.2), 0.15, randf_range(-0.2, 0.2)), Vector3(0, 1.2, 0), Color(0.3, 0.7, 1.0), 0.07, false)
+		gw.debris.spawn(global_position + Vector3(randf_range(-0.2, 0.2), 0.15, randf_range(-0.2, 0.2)), Vector3(0, 1.2, 0), Color(0.3, 0.7, 1.0), 0.04, false)
 
 
 func _process(delta: float) -> void:
@@ -495,16 +478,11 @@ func _process(delta: float) -> void:
 			equip(wsel)
 		if controls.consume("next_weapon"):
 			cycle_weapon()
-		if controls.consume("camera") or _take_key("camera"):
-			set_first_person(not first_person)
-			GameState.set_setting("first_person", first_person)
 		if controls.consume("build") or _take_key("build"):
 			gw.build_wall(global_position + Vector3(-sin(yaw), 0, -cos(yaw)) * 3.4, yaw)
 		if controls.consume("ability") or _take_key("ability"):
 			_use_ability()
 	else:
-		if _take_key("camera"):
-			set_first_person(not first_person)
 		if _take_key("build"):
 			gw.build_wall(global_position + Vector3(-sin(yaw), 0, -cos(yaw)) * 3.4, yaw)
 		if _take_key("ability"):
@@ -512,37 +490,33 @@ func _process(delta: float) -> void:
 
 	cam_yaw.rotation.y = yaw
 	cam_pitch.rotation.x = pitch
-	var target_fov := 72.0
+	var target_fov := 74.0 + (10.0 if dash_t > 0.0 else 0.0)
 	if aiming:
-		target_fov = 30.0 if weapon_id == "sniper" else 52.0
+		target_fov = 28.0 if weapon_id == "sniper" else 50.0
 	camera.fov = lerpf(camera.fov, target_fov, clampf(delta * 10.0, 0.0, 1.0))
-	if first_person:
-		spring.spring_length = 0.0
-		spring.position = Vector3(0, 0.1, 0)
-	else:
-		spring.spring_length = lerpf(spring.spring_length, 2.2 if aiming else 3.8, clampf(delta * 8.0, 0.0, 1.0))
-		spring.position = spring.position.lerp(Vector3(1.15 if aiming else 1.05, 0.3, 0), clampf(delta * 8.0, 0.0, 1.0))
-
-	# тряска камеры
-	_shake_t += delta * 40.0
-	var sh := gw.shake * gw.shake
-	camera.h_offset = sin(_shake_t * 1.3) * sh * 0.35
-	camera.v_offset = cos(_shake_t * 1.7) * sh * 0.35
 
 	_update_weapons(delta)
 
-	# анимация модели
+	# анимация вида от первого лица: покачивание при беге, приседание при
+	# приземлении, инерция оружия при повороте, отдача, тряска от взрывов
 	var hv := Vector2(velocity.x, velocity.z).length()
-	var move := clampf(hv / BASE_SPEED, 0.0, 1.3)
+	var move := clampf(hv / BASE_SPEED, 0.0, 1.3) if is_on_floor() else 0.0
 	anim_t += delta * (4.0 + hv * 1.4)
 	land_squash = maxf(land_squash - delta * 4.0, 0.0)
-	rig.rotation.y = lerp_angle(rig.rotation.y, yaw + PI, clampf(delta * 14.0, 0.0, 1.0))
-	var firing_pose := aiming or (controls != null and controls.fire_held) or recoil > 0.05
-	rig.animate_humanoid(anim_t, move, not is_on_floor(), pitch if firing_pose else -0.3, firing_pose, recoil, clampf(dash_t / DASH_TIME, 0.0, 1.0), land_squash)
-	viewmodel.position = Vector3(0.24, -0.2 + sin(anim_t) * 0.008 * move, -0.42 + recoil * 0.05)
+	_shake_t += delta * 40.0
+	var sh := gw.shake * gw.shake
+	camera.position = Vector3(
+		cos(anim_t * 0.5) * 0.025 * move + sin(_shake_t * 1.3) * sh * 0.25,
+		0.1 + absf(sin(anim_t * 0.5)) * 0.045 * move - land_squash * 0.14 + cos(_shake_t * 1.7) * sh * 0.25,
+		0.0)
+	camera.rotation.z = lerpf(camera.rotation.z, -look.x * sens * 0.6 + sh * sin(_shake_t) * 0.02, clampf(delta * 8.0, 0.0, 1.0))
+	_sway = _sway.lerp(Vector2(-look.x, look.y) * sens * 0.6, clampf(delta * 10.0, 0.0, 1.0))
+	viewmodel.position = Vector3(
+		0.2 + _sway.x + cos(anim_t * 0.5) * 0.012 * move,
+		-0.17 - _sway.y + absf(sin(anim_t * 0.5)) * 0.012 * move - land_squash * 0.05 - (0.04 if dash_t > 0.0 else 0.0),
+		-0.36 + recoil * 0.05)
+	viewmodel.rotation_degrees = Vector3(-2.0 + recoil * 6.0, 183.0 + _sway.x * 60.0, 0.0)
 	hit_flash = maxf(hit_flash - delta * 5.0, 0.0)
-	var fl := hit_flash * 0.8 + (0.35 if invuln > 0.0 else 0.0)
-	rig.set_flash(fl)
 
 
 func _use_ability() -> void:

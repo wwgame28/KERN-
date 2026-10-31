@@ -65,7 +65,6 @@ void vertex() {
 		mat3 R = rot_axis(ax, spin_t * (4.0 + 8.0 * h));
 		float shrink = clamp((lf - t) / 0.6, 0.0, 1.0);
 		VERTEX = R * (VERTEX * size * shrink) + off;
-		NORMAL = R * NORMAL;
 		v_heat = hot * clamp(1.0 - t / 0.9, 0.0, 1.0);
 	}
 }

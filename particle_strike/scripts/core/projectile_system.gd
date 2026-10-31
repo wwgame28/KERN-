@@ -165,7 +165,7 @@ func _physics_process(delta: float) -> void:
 			p.trail_t += delta
 			if p.trail_t > 0.02:
 				p.trail_t = 0.0
-				gw.debris.spawn(p.pos - p.vel.normalized() * 0.4, Vector3(randf_range(-1, 1), randf_range(0, 1.5), randf_range(-1, 1)), Color(1.0, 0.5, 0.2), 0.16, true)
+				gw.debris.spawn(p.pos - p.vel.normalized() * 0.4, Vector3(randf_range(-1, 1), randf_range(0, 1.5), randf_range(-1, 1)), Color(1.0, 0.5, 0.2), 0.06, true)
 
 
 func _proximity(p: Proj) -> float:
@@ -213,7 +213,7 @@ func _update_plasma(gw: GameWorld, p: Proj, next: Vector3) -> bool:
 		return true
 	p.pos = next
 	if randf() < 0.5:
-		gw.debris.spawn(next, Vector3(randf_range(-2, 2), randf_range(-1, 2), randf_range(-2, 2)), p.color, 0.14, false)
+		gw.debris.spawn(next, Vector3(randf_range(-2, 2), randf_range(-1, 2), randf_range(-2, 2)), p.color, 0.05, false)
 	return false
 
 
@@ -248,7 +248,7 @@ func _impact(gw: GameWorld, p: Proj, hit: Dictionary) -> void:
 			elif obj:
 				obj.damage_sphere(hp, p.radius, clampf(p.damage / 60.0, 0.2, 1.0), p.element, 6.0)
 			gw.fx.flash(hp, 0.35 + p.radius * 0.25, p.color, 0.1)
-			gw.debris.burst(hp, 3, p.color, 5.0, 0.1, false, 1.0)
+			gw.debris.burst(hp, 10, p.color, 5.0, 0.045, false, 1.0)
 
 
 func _chain(gw: GameWorld, from_enemy: Enemy, dmg: float, color: Color) -> void:
@@ -267,7 +267,7 @@ func _chain(gw: GameWorld, from_enemy: Enemy, dmg: float, color: Color) -> void:
 		best.take_damage(dmg, WeaponData.Element.ENERGY, (best.center() - from_enemy.center()).normalized(), best.center())
 
 
-func fire_laser(from: Vector3, dir: Vector3, damage: float, radius: float, pierce_vox: int, color: Color) -> Vector3:
+func fire_laser(from: Vector3, dir: Vector3, damage: float, radius: float, pierce_m: float, color: Color) -> Vector3:
 	var gw := GameWorld.current
 	var to := from + dir * 260.0
 	var end := to
@@ -276,7 +276,7 @@ func fire_laser(from: Vector3, dir: Vector3, damage: float, radius: float, pierc
 		var hp: Vector3 = hit["position"]
 		var obj: VoxelObject = hit.get("object")
 		if obj:
-			var pierce_len := float(pierce_vox) * obj.vs
+			var pierce_len := pierce_m
 			end = hp + dir * pierce_len
 			obj.carve_segment(hp - dir * 0.2, end, radius)
 			# пробитие: следующий объект за первым
@@ -289,7 +289,7 @@ func fire_laser(from: Vector3, dir: Vector3, damage: float, radius: float, pierc
 		else:
 			end = hp
 		gw.fx.flash(hp, 0.9, color, 0.2)
-		gw.debris.burst(hp, 10, color, 7.0, 0.14, true, 1.5)
+		gw.debris.burst(hp, 36, color, 7.0, 0.05, true, 1.5)
 	for e: Enemy in gw.enemies.duplicate():
 		if not e.is_alive():
 			continue

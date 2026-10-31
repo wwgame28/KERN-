@@ -61,11 +61,8 @@ func start_location(id: String) -> void:
 	player.setup(world, controls)
 	world.player = player
 
-	director = WaveDirector.new()
-	director.name = "Waves"
-	world.add_child(director)
-	world.director = director
-	director.start(world)
+	# Волны врагов пока отключены — локация работает как песочница разрушений.
+	# Чтобы вернуть: создать WaveDirector, добавить в world и вызвать start(world).
 
 	controls.setup(world, player)
 	hud.setup(world, player, controls)
@@ -87,8 +84,9 @@ func _run_tips() -> void:
 	var tips := [
 		"Левый палец — бег, правый — поворот камеры",
 		"Держи ОГОНЬ и веди пальцем — прицел следует за ним",
-		"Стреляй в низ зданий — верх рухнет целиком",
+		"Стреляй в низ небоскрёба по кругу — верх рухнет целиком",
 		"Светящиеся частицы — валюта. Подходи ближе — магнит соберёт",
+		"Красные частицы в машинах и бочках взрываются цепочкой",
 		"Вихрь заряжается от разрушений. Стена стоит 40 частиц",
 	]
 	var w := world

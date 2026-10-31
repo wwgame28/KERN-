@@ -45,6 +45,7 @@ var shake := 0.0
 var game_over := false
 
 var _collapse_queue: Array[VoxelObject] = []
+var _chunk_queue: Array = []
 var _pending_explosions: Array = []
 var _slowmo_left := 0.0
 var _chunks := 0
@@ -119,13 +120,28 @@ func request_collapse(obj: VoxelObject) -> void:
 		_collapse_queue.append(obj)
 
 
+func spawn_whole_chunk(obj: VoxelObject, value: float) -> void:
+	var ch := FallingChunk.new()
+	ch.setup_from_object(obj, value)
+	add_child(ch)
+	ch.start(gravity / 20.0)
+	_chunks += 1
+	ch.tree_exited.connect(_on_chunk_gone)
+	Sfx.play_at("crumble", obj.center_world(), 4.0)
+
+
+func queue_chunk(points: PackedVector3Array, cols: PackedColorArray, vs: float, value: float, explosive: bool) -> void:
+	_chunk_queue.append([points, cols, vs, value, explosive])
+
+
 func spawn_falling_chunk(points: PackedVector3Array, cols: PackedColorArray, vs: float, value: float, explosive: bool) -> void:
 	if _chunks >= MAX_CHUNKS:
 		# слишком много падающих кусков — сразу рассыпаем в частицы
-		var stride := maxi(1, points.size() / int(Perf.get_value("per_event")))
+		var stride := maxi(1, points.size() / maxi(int(Perf.get_value("per_event")), 1))
 		for k in range(0, points.size(), stride):
-			debris.spawn(points[k], Vector3(randf_range(-2, 2), randf_range(0, 3), randf_range(-2, 2)), cols[k], vs * 0.9, false)
-		on_voxels_destroyed(points.size(), value, points[0], false)
+			debris.spawn(points[k], Vector3(randf_range(-2, 2), randf_range(0, 3), randf_range(-2, 2)), cols[k], VoxelObject.PARTICLE * 1.5, false)
+		var w := (vs / VoxelObject.REF_VS) * (vs / VoxelObject.REF_VS)
+		on_voxels_destroyed(points.size(), value, points[0], false, w)
 		return
 	var ch := FallingChunk.new()
 	ch.setup(points, cols, vs, value, explosive)
@@ -133,7 +149,7 @@ func spawn_falling_chunk(points: PackedVector3Array, cols: PackedColorArray, vs:
 	ch.start(gravity / 20.0)
 	_chunks += 1
 	ch.tree_exited.connect(_on_chunk_gone)
-	if points.size() > 600:
+	if float(points.size()) * ch.weight() > 600.0:
 		Sfx.play_at("crumble", ch.global_position, 4.0)
 
 
@@ -240,7 +256,7 @@ func explode(pos: Vector3, radius: float, damage: float, element: int, team: int
 		Sfx.play_at("explosion", pos, -2.0 + radius)
 	else:
 		fx.flash(pos, radius * 0.9, col, 0.18)
-		debris.burst(pos, 8, col, radius * 4.0, 0.14, true, 2.0)
+		debris.burst(pos, 24, col, radius * 4.0, 0.05, true, 2.0)
 		Sfx.play_at("hit", pos)
 	add_shake(clampf(radius * 0.1, 0.05, 0.6) * _shake_falloff(pos))
 	if big_fx and radius >= 2.5 and _shake_falloff(pos) > 0.5:
@@ -263,18 +279,21 @@ func combo_mult() -> float:
 	return 1.0 + minf(float(combo) / 150.0, 8.0) * 0.25
 
 
-func on_voxels_destroyed(count: int, value: float, pos: Vector3, is_wall: bool) -> void:
+func on_voxels_destroyed(count: int, value: float, pos: Vector3, is_wall: bool, weight: float = 1.0) -> void:
+	## count — реальное число разрушенных ячеек, weight — их «вес» относительно ячейки 0.5 м
+	## (комбо, заряд вихря и замедление не зависят от мелкости сетки).
 	if is_wall or game_over:
 		return
 	stats["voxels"] = int(stats["voxels"]) + count
-	combo += count
+	var eq := float(count) * weight
+	combo += maxi(int(ceil(eq)), 1)
 	combo_timer = 2.5
 	combo_changed.emit(combo, combo_mult())
-	add_vortex_charge(float(count) * 0.0011)
+	add_vortex_charge(eq * 0.0011)
 	var total := int(value * 0.22 * combo_mult())
 	if total > 0:
 		shards.spray(pos, total, clampi(total / 4, 1, 14))
-	if count > 350:
+	if eq > 350.0:
 		slowmo(0.4, 0.4)
 
 
@@ -332,8 +351,8 @@ func build_wall(pos: Vector3, yaw: float) -> bool:
 	if walls.size() >= MAX_WALLS:
 		crumble(walls[0])
 	var w := VoxelObject.new()
-	w.setup(Vector3i(11, 8, 2), 0.4)
-	w.fill_box(Vector3i(0, 0, 0), Vector3i(10, 7, 1), VoxelMat.BUILD)
+	w.setup(Vector3i(22, 16, 4), 0.2)
+	w.fill_box(Vector3i(0, 0, 0), Vector3i(21, 15, 3), VoxelMat.BUILD)
 	w.is_player_wall = true
 	w.casts_shadow = false
 	var wb := Basis(Vector3.UP, yaw)
@@ -384,11 +403,11 @@ func _update_vortex(delta: float) -> void:
 				if d < 14.0:
 					e.knockback(to.normalized() * clampf(16.0 - d, 2.0, 12.0))
 					e.take_damage(4.0, WeaponData.Element.PLASMA, to.normalized(), _vortex_pos)
-		for k in 10:
+		for k in 30:
 			var a := randf() * TAU
 			var off := Vector3(cos(a), randf_range(-0.4, 0.8), sin(a)) * randf_range(3.0, 7.0)
 			var tang := Vector3(-sin(a), 0, cos(a)) * 6.0
-			debris.spawn(_vortex_pos + off, -off * 1.3 + tang + Vector3.UP * 4.0, Color(0.7, 0.4, 1.0), 0.2, true)
+			debris.spawn(_vortex_pos + off, -off * 1.3 + tang + Vector3.UP * 4.0, Color(0.7, 0.4, 1.0), 0.07, true)
 		fx.flash(_vortex_pos, r * 0.6, Color(0.55, 0.25, 1.0), 0.15)
 	if _vortex_t >= 2.2:
 		_vortex_active = false
@@ -408,12 +427,21 @@ func _process(delta: float) -> void:
 			Engine.time_scale = 1.0
 		else:
 			Engine.time_scale = lerpf(Engine.time_scale, 1.0, real * 0.5)
-	var n := 0
-	while n < 2 and not _collapse_queue.is_empty():
-		var obj: VoxelObject = _collapse_queue.pop_front()
-		if is_instance_valid(obj):
-			obj.check_collapse()
-		n += 1
+	# тяжёлую работу размазываем по кадрам: один кусок или одна проверка опор за кадр
+	if not _chunk_queue.is_empty():
+		var c: Array = _chunk_queue.pop_front()
+		spawn_falling_chunk(c[0], c[1], c[2], c[3], c[4])
+	elif not _collapse_queue.is_empty():
+		var now := Time.get_ticks_msec()
+		for qi in _collapse_queue.size():
+			var obj: VoxelObject = _collapse_queue[qi]
+			if not is_instance_valid(obj):
+				_collapse_queue.remove_at(qi)
+				break
+			if now >= obj.collapse_ready_ms:
+				_collapse_queue.remove_at(qi)
+				obj.check_collapse()
+				break
 	if not _pending_explosions.is_empty():
 		for i in range(_pending_explosions.size() - 1, -1, -1):
 			var pe: Array = _pending_explosions[i]

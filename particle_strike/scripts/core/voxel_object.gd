@@ -1,7 +1,9 @@
 class_name VoxelObject
 extends Node3D
 ## Разрушаемый объект из частиц-вокселей.
-## * Рендер: один MultiMesh на объект (1 draw call), удалённая частица = нулевой масштаб.
+## * Логическая ячейка (обычно 25 см) рисуется шейдером как сетка частиц по 5 см.
+## * Рендер: один MultiMesh на объект (1 draw call), удалённая ячейка = нулевой масштаб.
+## * При разрушении ячейка рассыпается на несколько мелких частиц-обломков (GPU).
 ## * Коллизии: ячейки 4×4×4 вокселя -> BoxShape без отдельных нод; пустая ячейка отключается.
 ## * Обрушение: после повреждения ищутся частицы, не связанные с опорой, —
 ##   они отваливаются целым куском (FallingChunk) или осыпаются.
@@ -11,9 +13,13 @@ enum Anchor { GROUND, ENDS_X, ENDS_Z, NONE }
 
 const CELL_SHIFT := 2
 const ZERO_T := Transform3D(Vector3.ZERO, Vector3.ZERO, Vector3.ZERO, Vector3.ZERO)
-const MAX_BURNING := 240
+const MAX_BURNING := 600
+## Размер видимой частицы (м): шейдер дробит каждую ячейку на частицы этого размера.
+const PARTICLE := 0.05
+## Ячейка 0.5 м — эталон, под который считаются награды и комбо.
+const REF_VS := 0.5
 
-static var _cube: BoxMesh = null
+static var _cube: ArrayMesh = null
 static var _material: ShaderMaterial = null
 
 var dims := Vector3i.ONE
@@ -32,23 +38,70 @@ var casts_shadow := true
 
 var mm: MultiMesh
 var mmi: MultiMeshInstance3D
+## Копия буфера MultiMesh в памяти: крупные разрушения (обрушение) обновляют
+## его целиком одной загрузкой вместо тысяч отдельных вызовов.
+var cpu_buf := PackedFloat32Array()
 var body: StaticBody3D
 var cdims := Vector3i.ONE
 var cell_counts := PackedInt32Array()
 var cell_owner := PackedInt32Array()
 var world_aabb := AABB()
 var collapse_pending := false
+## Проверка опор не чаще раза в 0.25 с на объект — при непрерывной стрельбе
+## повреждения копятся, а обрушение выглядит как короткий «скрип» перед обвалом.
+var collapse_ready_ms := 0
+var _flood_count := 0
 var burning := {}
 var _burn_tick := 0.0
 var _dead := false
 
 
-static func cube_mesh() -> BoxMesh:
+static func cube_mesh() -> ArrayMesh:
 	if _cube == null:
-		_cube = BoxMesh.new()
-		_cube.size = Vector3.ONE
-		_cube.material = shared_material()
+		_cube = make_cube_mesh()
+		_cube.surface_set_material(0, shared_material())
 	return _cube
+
+
+static func make_cube_mesh() -> ArrayMesh:
+	## Куб из 8 общих вершин (нормали считает шейдер) — втрое меньше работы
+	## вершинного шейдера, чем у стандартного BoxMesh (24 вершины).
+	var v := PackedVector3Array()
+	for i in 8:
+		v.append(Vector3(0.5 if (i & 1) != 0 else -0.5, 0.5 if (i & 2) != 0 else -0.5, 0.5 if (i & 4) != 0 else -0.5))
+	var faces := [[0, 2, 6, 4], [1, 5, 7, 3], [0, 4, 5, 1], [2, 3, 7, 6], [0, 1, 3, 2], [4, 6, 7, 5]]
+	var idx := PackedInt32Array()
+	for f in faces:
+		var q: Array = f
+		var center := (v[q[0]] + v[q[1]] + v[q[2]] + v[q[3]]) * 0.25
+		for tri in [[q[0], q[1], q[2]], [q[0], q[2], q[3]]]:
+			var a: int = tri[0]
+			var b: int = tri[1]
+			var c: int = tri[2]
+			# Godot: лицевые грани — по часовой стрелке, если смотреть снаружи
+			if (v[b] - v[a]).cross(v[c] - v[a]).dot(center) > 0.0:
+				var t := b
+				b = c
+				c = t
+			idx.append(a)
+			idx.append(b)
+			idx.append(c)
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = v
+	arrays[Mesh.ARRAY_INDEX] = idx
+	var m := ArrayMesh.new()
+	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return m
+
+
+static func sub_for(voxel_size: float) -> float:
+	return maxf(1.0, roundf(voxel_size / PARTICLE))
+
+
+func area_scale() -> float:
+	## Сколько «эталонных» ячеек 0.5 м составляет одна наша (по площади поверхности).
+	return (vs / REF_VS) * (vs / REF_VS)
 
 
 static func shared_material() -> ShaderMaterial:
@@ -111,6 +164,23 @@ func carve_sphere(c: Vector3, r: float) -> void:
 	fill_sphere(c, r, 0)
 
 
+func upsample(factor: int) -> void:
+	## Дробит каждую ячейку на factor³ более мелких (до finalize).
+	if factor <= 1:
+		return
+	var nd := dims * factor
+	var ng := PackedByteArray()
+	ng.resize(nd.x * nd.y * nd.z)
+	ng.fill(0)
+	for z in nd.z:
+		for y in nd.y:
+			for x in nd.x:
+				ng[x + nd.x * (y + nd.y * z)] = grid[(x / factor) + dims.x * ((y / factor) + dims.y * (z / factor))]
+	dims = nd
+	grid = ng
+	vs /= float(factor)
+
+
 func finalize() -> void:
 	var n := grid.size()
 	inst_of.resize(n)
@@ -130,7 +200,8 @@ func finalize() -> void:
 		var buf := PackedFloat32Array()
 		buf.resize(count * 16)
 		buf.fill(0.0)
-		var s := vs * 0.9
+		# ячейки стоят вплотную: зазоры рисует шейдер между частицами 5 см
+		var s := vs
 		var k := 0
 		# снизу вверх — порядок нужен для анимации «сборки»
 		for y in dims.y:
@@ -154,9 +225,11 @@ func finalize() -> void:
 					buf[o + 14] = c.b
 					buf[o + 15] = c.a
 					k += 1
-		mm.buffer = buf
+		cpu_buf = buf
+		mm.buffer = cpu_buf
 	mmi = MultiMeshInstance3D.new()
 	mmi.multimesh = mm
+	mmi.set_instance_shader_parameter("sub", sub_for(vs))
 	var shadows_on := bool(Perf.get_value("shadows"))
 	if not shadows_on or not casts_shadow or count < 250:
 		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -435,7 +508,7 @@ func ignite_voxel(i: int) -> void:
 	burning[i] = randf_range(1.4, 2.8)
 	var inst := inst_of[i]
 	if inst >= 0:
-		mm.set_instance_color(inst, Color(1.0, 0.45, 0.1, 1.0))
+		_set_color(inst, Color(1.0, 0.45, 0.1, 1.0))
 	set_process(true)
 
 
@@ -443,15 +516,28 @@ func _set_material(i: int, m: int) -> void:
 	grid[i] = m
 	var inst := inst_of[i]
 	if inst >= 0:
-		mm.set_instance_color(inst, VoxelMat.vary(m, i))
+		_set_color(inst, VoxelMat.vary(m, i))
+
+
+func _set_color(inst: int, c: Color) -> void:
+	mm.set_instance_color(inst, c)
+	var o := inst * 16 + 12
+	cpu_buf[o] = c.r
+	cpu_buf[o + 1] = c.g
+	cpu_buf[o + 2] = c.b
+	cpu_buf[o + 3] = c.a
 
 
 func _remove_list(list: PackedInt32Array, center_w: Vector3, impulse: float, fx: bool, award: bool) -> void:
 	var gw := GameWorld.current
 	var n := list.size()
-	var budget: int = int(Perf.get_value("per_event"))
-	var stride := maxi(1, ceili(float(n) / float(maxi(budget, 1))))
-	var size_boost := minf(1.0 + 0.12 * float(stride - 1), 1.8)
+	# бюджет мелких частиц-обломков на событие: мало ячеек — по несколько частиц
+	# на каждую, много ячеек — берём каждую k-ю
+	var budget: int = maxi(int(Perf.get_value("per_event")), 1)
+	var per := clampi(budget / maxi(n, 1), 1, 6)
+	var stride := maxi(1, ceili(float(n) / float(budget)))
+	var jitter := vs * 0.4
+	var bulk := n > 250
 	var value := 0.0
 	var trigger := false
 	var xf := global_transform
@@ -475,7 +561,12 @@ func _remove_list(list: PackedInt32Array, center_w: Vector3, impulse: float, fx:
 			burning.erase(i)
 		var inst := inst_of[i]
 		if inst >= 0:
-			mm.set_instance_transform(inst, ZERO_T)
+			if not bulk:
+				mm.set_instance_transform(inst, ZERO_T)
+			var ob := inst * 16
+			cpu_buf[ob] = 0.0
+			cpu_buf[ob + 5] = 0.0
+			cpu_buf[ob + 10] = 0.0
 			inst_of[i] = -1
 		var ci := _cell_index(x, y, z)
 		cell_counts[ci] -= 1
@@ -487,10 +578,16 @@ func _remove_list(list: PackedInt32Array, center_w: Vector3, impulse: float, fx:
 			var dir := wp - center_w
 			var dl := dir.length()
 			dir = dir / dl if dl > 0.001 else Vector3.UP
-			var vel := dir * impulse * randf_range(0.45, 1.2) + Vector3(randf_range(-1.5, 1.5), randf_range(1.5, 5.0), randf_range(-1.5, 1.5))
-			gw.debris.spawn(wp, vel, VoxelMat.vary(m, i), vs * 0.85 * size_boost, j % 3 == 0)
+			var col := VoxelMat.vary(m, i)
+			for q in per:
+				var off := Vector3(randf_range(-jitter, jitter), randf_range(-jitter, jitter), randf_range(-jitter, jitter))
+				var vel := dir * impulse * randf_range(0.4, 1.25) + Vector3(randf_range(-1.8, 1.8), randf_range(1.5, 5.5), randf_range(-1.8, 1.8))
+				gw.debris.spawn(wp + off, vel, col, PARTICLE * randf_range(0.8, 1.7), (j + q) % 3 == 0)
+	if bulk and removed_count > 0:
+		mm.buffer = cpu_buf
 	if gw and award and removed_count > 0:
-		gw.on_voxels_destroyed(removed_count, value * value_mult, center_w, is_player_wall)
+		var w := area_scale()
+		gw.on_voxels_destroyed(removed_count, value * value_mult * w, center_w, is_player_wall, w)
 	if gw and (trigger or (explode_on_break and solid_count < int(initial_count * 0.55))) and not exploded:
 		exploded = true
 		gw.schedule_explosion(center_world() if explode_on_break else center_w, explode_radius, 0.12)
@@ -498,6 +595,7 @@ func _remove_list(list: PackedInt32Array, center_w: Vector3, impulse: float, fx:
 		_die()
 	elif not collapse_pending and anchor != Anchor.NONE and gw:
 		collapse_pending = true
+		collapse_ready_ms = Time.get_ticks_msec() + 250
 		gw.request_collapse(self)
 
 
@@ -535,7 +633,7 @@ func _process(delta: float) -> void:
 		burning[i] = left
 		var inst := inst_of[i]
 		if inst >= 0:
-			mm.set_instance_color(inst, Color(1.0, 0.55, 0.12, 1.0) if flick else Color(1.0, 0.3, 0.05, 1.0))
+			_set_color(inst, Color(1.0, 0.55, 0.12, 1.0) if flick else Color(1.0, 0.3, 0.05, 1.0))
 		if left <= 0.0:
 			done.push_back(i)
 		elif randf() < 0.22:
@@ -557,7 +655,7 @@ func _process(delta: float) -> void:
 		if gw:
 			for k in mini(done.size(), 6):
 				var wp := voxel_world_pos(done[k])
-				gw.debris.spawn(wp, Vector3(randf_range(-1, 1), randf_range(2, 5), randf_range(-1, 1)), Color(1.0, 0.5, 0.1), vs * 0.6, true)
+				gw.debris.spawn(wp, Vector3(randf_range(-1, 1), randf_range(2, 5), randf_range(-1, 1)), Color(1.0, 0.5, 0.1), PARTICLE * 1.4, true)
 		_remove_list(done, center_world(), 1.0, false, true)
 
 
@@ -569,6 +667,14 @@ func check_collapse() -> void:
 		return
 	var n := grid.size()
 	var visited := _flood()
+	# быстрые выходы без сканирования всей сетки
+	if _flood_count >= solid_count:
+		return
+	var gw0 := GameWorld.current
+	if gw0 and _flood_count <= int(float(solid_count) * 0.15) and float(solid_count) * area_scale() > 120.0:
+		gw0.spawn_whole_chunk(self, float(solid_count) * value_mult * area_scale())
+		_die()
+		return
 	var loose := PackedInt32Array()
 	for i in n:
 		if grid[i] != 0 and visited[i] == 0:
@@ -578,7 +684,12 @@ func check_collapse() -> void:
 	var gw := GameWorld.current
 	if gw == null:
 		return
-	if loose.size() < 24:
+	if loose.size() >= int(float(solid_count) * 0.85) and float(loose.size()) * area_scale() > 120.0:
+		# падает почти всё здание — оно целиком превращается в падающее тело
+		gw.spawn_whole_chunk(self, float(solid_count) * value_mult * area_scale())
+		_die()
+		return
+	if float(loose.size()) * area_scale() < 24.0:
 		_remove_list(loose, voxel_world_pos(loose[0]), 2.0, true, true)
 		return
 	var positions := PackedVector3Array()
@@ -587,16 +698,54 @@ func check_collapse() -> void:
 	var has_explosive := false
 	positions.resize(loose.size())
 	cols.resize(loose.size())
+	var xf := global_transform
 	for k in loose.size():
 		var i := loose[k]
 		var m := grid[i]
-		positions[k] = voxel_world_pos(i)
-		cols[k] = VoxelMat.vary(m, i)
+		# позиция и цвет берутся прямо из копии буфера MultiMesh — без пересчёта
+		var o := inst_of[i] * 16
+		positions[k] = xf * Vector3(cpu_buf[o + 3], cpu_buf[o + 7], cpu_buf[o + 11])
+		cols[k] = Color(cpu_buf[o + 12], cpu_buf[o + 13], cpu_buf[o + 14], cpu_buf[o + 15])
 		value += float(VoxelMat.VALUE[m])
 		if m == VoxelMat.EXPLOSIVE:
 			has_explosive = true
-	_remove_list(loose, Vector3.ZERO, 0.0, false, false)
-	gw.spawn_falling_chunk(positions, cols, vs, value * value_mult, has_explosive)
+	_remove_silent(loose)
+	# сам кусок создаётся в следующем кадре — работа делится на два кадра
+	gw.queue_chunk(positions, cols, vs, value * value_mult * area_scale(), has_explosive)
+
+
+func _remove_silent(list: PackedInt32Array) -> void:
+	## Быстрое удаление большого набора ячеек без эффектов и наград
+	## (они уже переданы падающему куску). Буфер MultiMesh загружается одним вызовом.
+	var dx := dims.x
+	var dxy := dims.x * dims.y
+	for i in list:
+		if grid[i] == 0:
+			continue
+		grid[i] = 0
+		var inst := inst_of[i]
+		if inst >= 0:
+			var ob := inst * 16
+			cpu_buf[ob] = 0.0
+			cpu_buf[ob + 5] = 0.0
+			cpu_buf[ob + 10] = 0.0
+			inst_of[i] = -1
+		var z := i / dxy
+		var r := i - z * dxy
+		var y := r / dx
+		var x := r - y * dx
+		var ci := (x >> CELL_SHIFT) + cdims.x * ((y >> CELL_SHIFT) + cdims.y * (z >> CELL_SHIFT))
+		cell_counts[ci] -= 1
+		if cell_counts[ci] <= 0 and cell_owner[ci] >= 0:
+			body.shape_owner_set_disabled(cell_owner[ci], true)
+			cell_owner[ci] = -1
+	solid_count -= list.size()
+	if not burning.is_empty():
+		for i in list:
+			burning.erase(i)
+	mm.buffer = cpu_buf
+	if solid_count <= 0:
+		_die()
 
 
 func _flood() -> PackedByteArray:
@@ -606,6 +755,7 @@ func _flood() -> PackedByteArray:
 	visited.resize(n)
 	visited.fill(0)
 	var stack := PackedInt32Array()
+	_flood_count = 0
 	match anchor:
 		Anchor.GROUND:
 			for z in dims.z:
@@ -614,6 +764,7 @@ func _flood() -> PackedByteArray:
 					if grid[i] != 0:
 						visited[i] = 1
 						stack.push_back(i)
+						_flood_count += 1
 		Anchor.ENDS_X:
 			for z in dims.z:
 				for y in dims.y:
@@ -622,6 +773,7 @@ func _flood() -> PackedByteArray:
 						if grid[i] != 0 and visited[i] == 0:
 							visited[i] = 1
 							stack.push_back(i)
+							_flood_count += 1
 		Anchor.ENDS_Z:
 			for y in dims.y:
 				for x in dims.x:
@@ -630,6 +782,7 @@ func _flood() -> PackedByteArray:
 						if grid[i] != 0 and visited[i] == 0:
 							visited[i] = 1
 							stack.push_back(i)
+							_flood_count += 1
 	var sx := 1
 	var sy := dims.x
 	var sz := dims.x * dims.y
@@ -645,31 +798,37 @@ func _flood() -> PackedByteArray:
 			if grid[ja] != 0 and visited[ja] == 0:
 				visited[ja] = 1
 				stack.push_back(ja)
+				_flood_count += 1
 		if x < dims.x - 1:
 			var jb := i + sx
 			if grid[jb] != 0 and visited[jb] == 0:
 				visited[jb] = 1
 				stack.push_back(jb)
+				_flood_count += 1
 		if y > 0:
 			var jc := i - sy
 			if grid[jc] != 0 and visited[jc] == 0:
 				visited[jc] = 1
 				stack.push_back(jc)
+				_flood_count += 1
 		if y < dims.y - 1:
 			var jd := i + sy
 			if grid[jd] != 0 and visited[jd] == 0:
 				visited[jd] = 1
 				stack.push_back(jd)
+				_flood_count += 1
 		if z > 0:
 			var je := i - sz
 			if grid[je] != 0 and visited[je] == 0:
 				visited[je] = 1
 				stack.push_back(je)
+				_flood_count += 1
 		if z < dims.z - 1:
 			var jf := i + sz
 			if grid[jf] != 0 and visited[jf] == 0:
 				visited[jf] = 1
 				stack.push_back(jf)
+				_flood_count += 1
 	return visited
 
 

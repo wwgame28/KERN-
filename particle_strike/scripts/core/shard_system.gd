@@ -34,6 +34,7 @@ func setup(cap: int, g: float) -> void:
 	m.instance_count = cap
 	m.visible_instance_count = 0
 	multimesh = m
+	set_instance_shader_parameter("sub", 2.0)
 	custom_aabb = AABB(Vector3(-500, -60, -500), Vector3(1000, 400, 1000))
 	cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
@@ -116,7 +117,7 @@ func update(delta: float, player_pos: Vector3, magnet_radius: float, collect_cb:
 		pos[i] = p
 		vel[i] = v
 		var bob := sin(a * 3.0 + float(i)) * 0.12
-		var b := Basis(Vector3.UP, a * 2.5).rotated(Vector3.RIGHT, 0.6).scaled(Vector3(0.26, 0.26, 0.26))
+		var b := Basis(Vector3.UP, a * 2.5).rotated(Vector3.RIGHT, 0.6).scaled(Vector3(0.16, 0.16, 0.16))
 		multimesh.set_instance_transform(i, Transform3D(b, p + Vector3(0, bob, 0)))
 		i += 1
 	multimesh.visible_instance_count = count

@@ -6,7 +6,7 @@ signal particles_changed(value: int)
 signal settings_changed
 
 const SAVE_PATH := "user://particle_strike_save.json"
-const LOCATIONS := ["city", "village", "wasteland", "space"]
+const LOCATIONS := ["city"]
 const LOCATION_NAMES := {
 	"city": "Город", "village": "Деревня", "wasteland": "Пустошь", "space": "Космос",
 }
@@ -49,8 +49,6 @@ var settings := {
 	"slowmo": true,
 	"shake": 1.0,
 	"show_fps": false,
-	"first_person": false,
-	"all_locations": false,
 	"invert_y": false,
 	"sound": true,
 	"music": true,

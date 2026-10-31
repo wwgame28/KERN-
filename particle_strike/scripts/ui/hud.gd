@@ -136,9 +136,11 @@ func _draw() -> void:
 		_text(font, Vector2(bx, py + 26.0 * u), "КОМБО ×%.2f" % gw.combo_mult(), int(17 * u * s), Color(1.0, 0.8, 0.3, a))
 		draw_rect(Rect2(bx, py + 32.0 * u, 120.0 * u * clampf(gw.combo_timer / 2.5, 0.0, 1.0), 3.0 * u), Color(1.0, 0.8, 0.3, a))
 
-	# --- волна (сверху по центру)
+	# --- волна или счётчик разрушений (песочница)
 	if gw.director:
 		_text(font, Vector2(0, mt + 24.0 * u), gw.director.info_text(), int(17 * u), Color(1, 1, 1, 0.85), HORIZONTAL_ALIGNMENT_CENTER, vp.x)
+	else:
+		_text(font, Vector2(0, mt + 24.0 * u), "Разрушено: %d" % int(gw.stats["voxels"]), int(17 * u), Color(1, 1, 1, 0.85), HORIZONTAL_ALIGNMENT_CENTER, vp.x)
 
 	# --- полоса босса
 	for e: Enemy in gw.enemies:

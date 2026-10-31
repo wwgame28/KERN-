@@ -1,5 +1,5 @@
 class_name LevelEnv
-## Общие кирпичики локаций: небо, свет, туман, земля, границы, дальний фон, частицы атмосферы.
+## Кирпичики локации: небо, свет, туман, земля, границы, дальний фон, частицы атмосферы.
 
 
 static func make_environment(gw: GameWorld, cfg: Dictionary) -> void:
@@ -110,21 +110,6 @@ static func make_bounds(gw: GameWorld, half: float) -> void:
 	gw.bounds = half
 
 
-static func make_water(gw: GameWorld, center: Vector3, size: Vector2) -> void:
-	var mat := ShaderMaterial.new()
-	mat.shader = load("res://shaders/water.gdshader")
-	var plane := PlaneMesh.new()
-	plane.size = size
-	plane.subdivide_width = 8
-	plane.subdivide_depth = 32
-	plane.material = mat
-	var mi := MeshInstance3D.new()
-	mi.mesh = plane
-	mi.position = center
-	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	gw.add_child(mi)
-
-
 # ------------------------------------------------------------------ дальний фон
 
 static func _quad(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3, center: Vector3) -> void:
@@ -160,18 +145,6 @@ static func _box_into(st: SurfaceTool, c: Vector3, s: Vector3) -> void:
 	_quad(st, p[3], p[2], p[6], p[7], c)
 
 
-static func _cone_into(st: SurfaceTool, base: Vector3, r: float, h: float, segs: int, rng: RandomNumberGenerator) -> void:
-	var top := base + Vector3(rng.randf_range(-r, r) * 0.2, h, rng.randf_range(-r, r) * 0.2)
-	var center := base + Vector3(0, h * 0.3, 0)
-	var pts: Array[Vector3] = []
-	for i in segs:
-		var a := TAU * float(i) / float(segs) + rng.randf_range(-0.2, 0.2)
-		var rr := r * rng.randf_range(0.75, 1.1)
-		pts.append(base + Vector3(cos(a) * rr, 0, sin(a) * rr))
-	for i in segs:
-		_tri(st, pts[i], pts[(i + 1) % segs], top, center)
-
-
 static func make_backdrop(gw: GameWorld, kind: String, rng: RandomNumberGenerator, cfg: Dictionary) -> void:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -183,16 +156,6 @@ static func make_backdrop(gw: GameWorld, kind: String, rng: RandomNumberGenerato
 				var w := rng.randf_range(8.0, 22.0)
 				var h := rng.randf_range(25.0, 110.0)
 				_box_into(st, Vector3(cos(a) * dist, h * 0.5, sin(a) * dist), Vector3(w, h, w * rng.randf_range(0.7, 1.3)))
-		"mountains", "mesas":
-			for i in 34:
-				var a := TAU * float(i) / 34.0 + rng.randf_range(-0.05, 0.05)
-				var dist := rng.randf_range(150.0, 230.0)
-				if kind == "mesas":
-					var w := rng.randf_range(25.0, 60.0)
-					var h := rng.randf_range(15.0, 45.0)
-					_box_into(st, Vector3(cos(a) * dist, h * 0.5, sin(a) * dist), Vector3(w, h, w * 0.7))
-				else:
-					_cone_into(st, Vector3(cos(a) * dist, -2.0, sin(a) * dist), rng.randf_range(35.0, 70.0), rng.randf_range(30.0, 80.0), 7, rng)
 	var mesh := st.commit()
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://shaders/backdrop.gdshader")
@@ -204,45 +167,6 @@ static func make_backdrop(gw: GameWorld, kind: String, rng: RandomNumberGenerato
 	mi.material_override = mat
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	gw.add_child(mi)
-
-
-static func make_planet(gw: GameWorld) -> void:
-	var sphere := SphereMesh.new()
-	sphere.radius = 260.0
-	sphere.height = 520.0
-	sphere.radial_segments = 48
-	sphere.rings = 24
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.35, 0.25, 0.6)
-	mat.emission_enabled = true
-	mat.emission = Color(0.12, 0.05, 0.25)
-	mat.rim_enabled = true
-	mat.rim = 0.8
-	mat.rim_tint = 0.2
-	sphere.material = mat
-	var mi := MeshInstance3D.new()
-	mi.mesh = sphere
-	mi.position = Vector3(-520, 160, -900)
-	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	gw.add_child(mi)
-	var torus := TorusMesh.new()
-	torus.inner_radius = 330.0
-	torus.outer_radius = 430.0
-	torus.rings = 64
-	torus.ring_segments = 4
-	var rmat := StandardMaterial3D.new()
-	rmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	rmat.albedo_color = Color(0.7, 0.55, 1.0, 0.35)
-	rmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	rmat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	torus.material = rmat
-	var ring := MeshInstance3D.new()
-	ring.mesh = torus
-	ring.position = mi.position
-	ring.rotation_degrees = Vector3(18, 0, 12)
-	ring.scale = Vector3(1, 0.02, 1)
-	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	gw.add_child(ring)
 
 
 # ------------------------------------------------------------------ частицы атмосферы
