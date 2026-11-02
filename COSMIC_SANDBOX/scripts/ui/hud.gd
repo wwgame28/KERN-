@@ -6,6 +6,7 @@ extends CanvasLayer
 
 const DESKTOP_HINT: String = "WASD — ходьба · мышь — камера (клик; Esc — отпустить) · стрелки — камера · Space — прыжок · E — действие · G — гравитация"
 const TOUCH_HINT: String = "Стик слева — ходьба · свайп справа — камера · «Прыжок», «Грав.», «Действие» — кнопки справа"
+const HINT_DIM_ALPHA: float = 0.45
 
 ## Show touch controls even on PC (handy for testing the layout with a touchscreen).
 @export var force_touch_controls: bool = false
@@ -93,10 +94,9 @@ func _process(delta: float) -> void:
 			_toast_label.hide()
 
 	if _hint_time > 0.0:
+		# The control hint stays on screen; after a while it just becomes less prominent.
 		_hint_time -= delta
-		_hint_label.modulate.a = clampf(_hint_time / 1.0, 0.0, 1.0)
-		if _hint_time <= 0.0:
-			_hint_label.hide()
+		_hint_label.modulate.a = lerpf(HINT_DIM_ALPHA, 1.0, clampf(_hint_time, 0.0, 1.0))
 
 
 func _set_gameplay_active(active: bool) -> void:

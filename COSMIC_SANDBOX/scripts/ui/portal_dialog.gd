@@ -6,6 +6,7 @@ extends PanelContainer
 signal closed
 
 @onready var _title: Label = $Margin/VBox/Title
+@onready var _headline: Label = $Margin/VBox/Headline
 @onready var _body: Label = $Margin/VBox/Body
 @onready var _close_button: Button = $Margin/VBox/CloseButton
 
@@ -17,9 +18,14 @@ func _ready() -> void:
 
 func open(portal: Portal) -> void:
 	_title.text = "Портал «%s»" % portal.portal_name
+	_headline.text = portal.status_headline
 	_body.text = portal.status_text
 	show()
 	_close_button.grab_focus()
+
+
+func get_headline_text() -> String:
+	return _headline.text
 
 
 func close() -> void:

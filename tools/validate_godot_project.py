@@ -100,7 +100,8 @@ def parse_script(root: Path, file: Path) -> ScriptInfo:
         code = line.split("#", 1)[0]
         for m in re.finditer(r"\$([A-Za-z0-9_/]+)", code):
             info.node_refs.append((lineno, m.group(1)))
-        for m in re.finditer(r"get_node\(\"([^\"]+)\"\)", code):
+        # Only bare get_node("...") calls are relative to the script's own node.
+        for m in re.finditer(r"(?<![\w.])get_node\(\"([^\"]+)\"\)", code):
             info.node_refs.append((lineno, m.group(1)))
         for m in re.finditer(r"&\"(\w+)\"", code):
             info.actions.append((lineno, m.group(1)))
@@ -135,8 +136,10 @@ def parse_scene(root: Path, file: Path, scripts: dict[str, ScriptInfo],
     rel = "res://" + file.relative_to(root).as_posix()
     text = file.read_text(encoding="utf-8")
     lines = text.splitlines()
-    if not lines or not lines[0].startswith("[gd_scene"):
-        err(f"{rel}: first line must be a [gd_scene ...] header")
+    is_resource = file.suffix == ".tres"
+    expected_header = "[gd_resource" if is_resource else "[gd_scene"
+    if not lines or not lines[0].startswith(expected_header):
+        err(f"{rel}: first line must be a {expected_header} ...] header")
         return
     if "format=3" not in lines[0]:
         err(f"{rel}: expected format=3 (Godot 4)")
@@ -171,6 +174,11 @@ def parse_scene(root: Path, file: Path, scripts: dict[str, ScriptInfo],
                 if rid in sub:
                     err(f"{rel}:{lineno}: duplicate sub_resource id {rid}")
                 sub.add(rid)
+            elif kind == "resource":
+                node = SceneNode("resource", None, ".", line=lineno)
+                nodes["."] = node
+                current = node
+                current_kind = "node"
             elif kind == "node":
                 name = attrs.get("name", "").strip('"')
                 parent = attrs.get("parent")
@@ -280,7 +288,7 @@ def main() -> int:
                 continue
             err(f"{info.path}:{lineno}: Input Action '{action}' is not defined in project.godot")
 
-    for file in sorted(root.rglob("*.tscn")):
+    for file in sorted(list(root.rglob("*.tscn")) + list(root.rglob("*.tres"))):
         if ".godot" in file.parts:
             continue
         parse_scene(root, file, scripts, classes)

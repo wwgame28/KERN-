@@ -9,7 +9,9 @@ signal portal_activated(portal: Portal)
 const GROUP: StringName = &"portals"
 
 @export var portal_name: String = "Врата Эхо-1"
-@export_multiline var status_text: String = "Древний портал откликается на ваше присутствие, но сеть порталов нестабильна: ни одно направление не отвечает.\n\n[Прототип] Переход между планетами появится на этапе 3, вместе с загрузкой планет и сохранением состояния."
+## Main message shown when the player interacts with the portal.
+@export var status_headline: String = "Портал пока не активирован"
+@export_multiline var status_text: String = "Древние символы мерцают, но сеть порталов не отвечает.\n\n[Прототип] Переход между планетами появится на этапе 3, вместе с загрузкой планет и сохранением состояния."
 @export var idle_glow: float = 0.6
 @export var focus_glow: float = 2.2
 @export var idle_spin_speed: float = 0.5

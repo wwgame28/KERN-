@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="GravitySettings" format=3]
+
+[ext_resource type="Script" path="res://scripts/systems/gravity_settings.gd" id="1_settings"]
+
+[resource]
+script = ExtResource("1_settings")
+normal_strength = 9.8
+low_strength = 3.2
+direction = Vector3(0, -1, 0)
+normal_label = "Нормальная"
+low_label = "Низкая"

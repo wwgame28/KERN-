@@ -19,8 +19,6 @@ signal respawned
 @export_group("Safety")
 ## Falling below this height returns the player to the spawn point.
 @export var kill_height: float = -25.0
-## Used only if no GravityController was provided.
-@export var fallback_gravity: float = 9.8
 
 var _gravity_controller: GravityController = null
 var _spawn_position: Vector3 = Vector3.ZERO
@@ -57,7 +55,12 @@ func respawn() -> void:
 func get_gravity_vector() -> Vector3:
 	if _gravity_controller != null:
 		return _gravity_controller.get_gravity_vector()
-	return Vector3.DOWN * fallback_gravity
+	# No controller (e.g. player scene run on its own): use the physics space gravity,
+	# which comes from Project Settings -> Physics -> 3D -> Default Gravity.
+	var space: RID = get_world_3d().space
+	var strength: float = PhysicsServer3D.area_get_param(space, PhysicsServer3D.AREA_PARAM_GRAVITY)
+	var direction: Vector3 = PhysicsServer3D.area_get_param(space, PhysicsServer3D.AREA_PARAM_GRAVITY_VECTOR)
+	return direction * strength
 
 
 func _physics_process(delta: float) -> void:

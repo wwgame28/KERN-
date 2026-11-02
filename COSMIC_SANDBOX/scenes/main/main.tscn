@@ -5,14 +5,14 @@
 [ext_resource type="PackedScene" path="res://scenes/planets/test_planet.tscn" id="3_planet"]
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="4_player"]
 [ext_resource type="PackedScene" path="res://scenes/ui/hud.tscn" id="5_hud"]
+[ext_resource type="Resource" path="res://resources/planets/test_planet_gravity.tres" id="6_gravity_settings"]
 
 [node name="Main" type="Node3D"]
 script = ExtResource("1_main")
 
 [node name="GravityController" type="Node" parent="."]
 script = ExtResource("2_gravity")
-normal_strength = 9.8
-low_strength = 3.2
+settings = ExtResource("6_gravity_settings")
 
 [node name="TestPlanet" parent="." instance=ExtResource("3_planet")]
 

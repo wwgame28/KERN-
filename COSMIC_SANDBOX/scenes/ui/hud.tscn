@@ -261,6 +261,13 @@ theme_override_colors/font_color = Color(0.6, 0.92, 1, 1)
 theme_override_font_sizes/font_size = 28
 text = "Портал"
 
+[node name="Headline" type="Label" parent="Root/PortalDialog/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.8, 0.5, 1)
+theme_override_font_sizes/font_size = 24
+text = "Портал пока не активирован"
+autowrap_mode = 3
+
 [node name="Body" type="Label" parent="Root/PortalDialog/Margin/VBox"]
 custom_minimum_size = Vector2(560, 0)
 layout_mode = 2

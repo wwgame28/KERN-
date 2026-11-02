@@ -156,6 +156,53 @@ height = 36.0
 radial_segments = 24
 rings = 12
 
+[sub_resource type="StandardMaterial3D" id="Material_spire"]
+albedo_color = Color(0.26, 0.2, 0.38, 1)
+roughness = 0.8
+
+[sub_resource type="StandardMaterial3D" id="Material_gold"]
+albedo_color = Color(1, 0.78, 0.35, 1)
+metallic = 0.5
+roughness = 0.4
+emission_enabled = true
+emission = Color(1, 0.7, 0.25, 1)
+emission_energy_multiplier = 1.0
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_spire"]
+material = SubResource("Material_spire")
+top_radius = 0.7
+bottom_radius = 2.4
+height = 16.0
+radial_segments = 6
+rings = 1
+
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_spire"]
+height = 16.0
+radius = 2.0
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_band"]
+material = SubResource("Material_gold")
+top_radius = 1.25
+bottom_radius = 1.4
+height = 0.6
+radial_segments = 6
+rings = 1
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_tip"]
+material = SubResource("Material_crystal_cyan")
+top_radius = 0.0
+bottom_radius = 0.9
+height = 3.2
+radial_segments = 6
+rings = 1
+
+[sub_resource type="TorusMesh" id="TorusMesh_halo"]
+material = SubResource("Material_gold")
+inner_radius = 2.6
+outer_radius = 3.0
+rings = 48
+ring_segments = 8
+
 [node name="TestPlanet" type="Node3D"]
 script = ExtResource("1_planet")
 display_name = "Тестовая планета «Эхо-1»"
@@ -190,6 +237,44 @@ mesh = SubResource("CylinderMesh_underside")
 
 [node name="Portal" parent="." instance=ExtResource("2_portal")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -6)
+
+[node name="Landmark" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18, 0, -24)
+collision_mask = 0
+editor_description = "Крупный визуальный ориентир (PLACEHOLDER): шпиль древней сети порталов, виден из любой точки острова."
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Landmark"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 8, 0)
+shape = SubResource("CylinderShape3D_spire")
+
+[node name="Spire" type="MeshInstance3D" parent="Landmark"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 8, 0)
+mesh = SubResource("CylinderMesh_spire")
+
+[node name="Band" type="MeshInstance3D" parent="Landmark"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 10, 0)
+mesh = SubResource("CylinderMesh_band")
+
+[node name="Tip" type="MeshInstance3D" parent="Landmark"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 17.6, 0)
+mesh = SubResource("CylinderMesh_tip")
+script = ExtResource("3_rotator")
+degrees_per_second = 30.0
+
+[node name="Halo" type="Node3D" parent="Landmark"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 13.5, 0)
+script = ExtResource("3_rotator")
+degrees_per_second = 25.0
+
+[node name="Ring" type="MeshInstance3D" parent="Landmark/Halo"]
+transform = Transform3D(1, 0, 0, 0, 0.906308, -0.422618, 0, 0.422618, 0.906308, 0, 0, 0)
+mesh = SubResource("TorusMesh_halo")
+
+[node name="TipLight" type="OmniLight3D" parent="Landmark"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 17, 0)
+light_color = Color(0.4, 0.9, 1, 1)
+light_energy = 1.2
+omni_range = 14.0
 
 [node name="GravityCourse" type="Node3D" parent="."]
 editor_description = "Платформы для проверки гравитации. A (0.9 м) достижима при нормальной гравитации. B (2.4 м) и C (3.9 м) — только при низкой."

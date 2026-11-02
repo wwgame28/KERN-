@@ -3,14 +3,14 @@ extends Node
 ## Holds the active gravity mode for the current planet.
 ## Stage 1: two strength presets with one fixed direction.
 ## Arbitrary gravity fields (spherical planets, zones) are intentionally not implemented yet.
+## All numbers come from the GravitySettings resource - nothing is hard-coded here.
 
 signal gravity_changed(mode: int, strength: float)
 
 enum Mode { NORMAL, LOW }
 
-@export var normal_strength: float = 9.8
-@export var low_strength: float = 3.2
-@export var gravity_direction: Vector3 = Vector3.DOWN
+## Central gravity configuration (res://resources/planets/test_planet_gravity.tres).
+@export var settings: GravitySettings
 @export var start_mode: Mode = Mode.NORMAL
 ## Also write the gravity into the default physics space,
 ## so future RigidBody3D props follow the same rules as the player.
@@ -20,6 +20,9 @@ var mode: Mode = Mode.NORMAL
 
 
 func _ready() -> void:
+	if settings == null:
+		push_warning("GravityController: 'settings' is not assigned, using GravitySettings defaults.")
+		settings = GravitySettings.new()
 	set_mode(start_mode, true)
 
 
@@ -41,14 +44,14 @@ func set_mode(new_mode: Mode, force: bool = false) -> void:
 
 func get_strength() -> float:
 	if mode == Mode.LOW:
-		return low_strength
-	return normal_strength
+		return settings.low_strength
+	return settings.normal_strength
 
 
 func get_direction() -> Vector3:
-	if gravity_direction.is_zero_approx():
+	if settings.direction.is_zero_approx():
 		return Vector3.DOWN
-	return gravity_direction.normalized()
+	return settings.direction.normalized()
 
 
 func get_gravity_vector() -> Vector3:
@@ -57,8 +60,8 @@ func get_gravity_vector() -> Vector3:
 
 func get_mode_name() -> String:
 	if mode == Mode.LOW:
-		return "Низкая"
-	return "Нормальная"
+		return settings.low_label
+	return settings.normal_label
 
 
 func _apply_to_physics_space() -> void:
