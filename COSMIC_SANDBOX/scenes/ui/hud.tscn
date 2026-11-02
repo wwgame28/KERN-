@@ -1,0 +1,276 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/hud.gd" id="1_hud"]
+[ext_resource type="Script" path="res://scripts/ui/touch_look_area.gd" id="2_look"]
+[ext_resource type="Script" path="res://scripts/ui/virtual_joystick.gd" id="3_joystick"]
+[ext_resource type="Script" path="res://scripts/ui/touch_action_button.gd" id="4_button"]
+[ext_resource type="Script" path="res://scripts/ui/portal_dialog.gd" id="5_dialog"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_dialog"]
+bg_color = Color(0.07, 0.06, 0.14, 0.94)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.4, 0.85, 1, 0.8)
+corner_radius_top_left = 18
+corner_radius_top_right = 18
+corner_radius_bottom_right = 18
+corner_radius_bottom_left = 18
+
+[node name="HUD" type="CanvasLayer"]
+script = ExtResource("1_hud")
+
+[node name="Root" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="SafeArea" type="Control" parent="Root"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = 16.0
+offset_right = -16.0
+offset_bottom = -16.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="TouchControls" type="Control" parent="Root/SafeArea"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="LookArea" type="Control" parent="Root/SafeArea/TouchControls"]
+layout_mode = 1
+anchor_left = 0.42
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("2_look")
+
+[node name="Joystick" type="Control" parent="Root/SafeArea/TouchControls"]
+layout_mode = 1
+anchor_top = 0.35
+anchor_right = 0.42
+anchor_bottom = 1.0
+grow_vertical = 0
+mouse_filter = 2
+script = ExtResource("3_joystick")
+
+[node name="GravityButton" type="Control" parent="Root/SafeArea/TouchControls"]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -150.0
+offset_top = -310.0
+offset_right = -40.0
+offset_bottom = -200.0
+grow_horizontal = 0
+grow_vertical = 0
+mouse_filter = 2
+script = ExtResource("4_button")
+action = &"toggle_gravity"
+label = "Грав."
+font_size = 20
+
+[node name="InteractButton" type="Control" parent="Root/SafeArea/TouchControls"]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -330.0
+offset_top = -170.0
+offset_right = -200.0
+offset_bottom = -40.0
+grow_horizontal = 0
+grow_vertical = 0
+mouse_filter = 2
+script = ExtResource("4_button")
+action = &"interact"
+label = "Действие"
+font_size = 20
+fill_color = Color(0.55, 0.9, 1, 0.25)
+
+[node name="JumpButton" type="Control" parent="Root/SafeArea/TouchControls"]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -180.0
+offset_top = -180.0
+offset_right = -20.0
+offset_bottom = -20.0
+grow_horizontal = 0
+grow_vertical = 0
+mouse_filter = 2
+script = ExtResource("4_button")
+action = &"jump"
+label = "Прыжок"
+
+[node name="TopBar" type="VBoxContainer" parent="Root/SafeArea"]
+layout_mode = 1
+offset_left = 8.0
+offset_top = 4.0
+offset_right = 660.0
+offset_bottom = 140.0
+mouse_filter = 2
+theme_override_constants/separation = 2
+
+[node name="PlanetLabel" type="Label" parent="Root/SafeArea/TopBar"]
+layout_mode = 2
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.75)
+theme_override_constants/outline_size = 6
+theme_override_font_sizes/font_size = 24
+text = "Тестовая планета"
+
+[node name="GravityLabel" type="Label" parent="Root/SafeArea/TopBar"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.92, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.75)
+theme_override_constants/outline_size = 6
+theme_override_font_sizes/font_size = 20
+text = "Гравитация: —"
+
+[node name="HintLabel" type="Label" parent="Root/SafeArea/TopBar"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.85)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.75)
+theme_override_constants/outline_size = 5
+theme_override_font_sizes/font_size = 16
+text = "Подсказка управления"
+autowrap_mode = 3
+
+[node name="StatusBox" type="VBoxContainer" parent="Root/SafeArea"]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -380.0
+offset_top = 4.0
+offset_right = -8.0
+offset_bottom = 70.0
+grow_horizontal = 0
+mouse_filter = 2
+theme_override_constants/separation = 0
+
+[node name="FpsLabel" type="Label" parent="Root/SafeArea/StatusBox"]
+layout_mode = 2
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.75)
+theme_override_constants/outline_size = 5
+theme_override_font_sizes/font_size = 18
+text = "FPS: --"
+horizontal_alignment = 2
+
+[node name="PrototypeLabel" type="Label" parent="Root/SafeArea/StatusBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.8, 0.5, 0.9)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.75)
+theme_override_constants/outline_size = 5
+theme_override_font_sizes/font_size = 14
+text = "ПРОТОТИП · этап 1 · placeholder-графика"
+horizontal_alignment = 2
+
+[node name="ToastLabel" type="Label" parent="Root/SafeArea"]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -340.0
+offset_top = 96.0
+offset_right = 340.0
+offset_bottom = 136.0
+grow_horizontal = 2
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.8)
+theme_override_constants/outline_size = 7
+theme_override_font_sizes/font_size = 26
+text = "Сообщение"
+horizontal_alignment = 1
+
+[node name="PromptLabel" type="Label" parent="Root/SafeArea"]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -320.0
+offset_top = -250.0
+offset_right = 320.0
+offset_bottom = -210.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_colors/font_color = Color(0.7, 0.95, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.8)
+theme_override_constants/outline_size = 7
+theme_override_font_sizes/font_size = 24
+text = "[E] Действие"
+horizontal_alignment = 1
+
+[node name="PortalDialog" type="PanelContainer" parent="Root"]
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -320.0
+offset_top = -190.0
+offset_right = 320.0
+offset_bottom = 190.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_dialog")
+script = ExtResource("5_dialog")
+
+[node name="Margin" type="MarginContainer" parent="Root/PortalDialog"]
+layout_mode = 2
+theme_override_constants/margin_left = 28
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_right = 28
+theme_override_constants/margin_bottom = 24
+
+[node name="VBox" type="VBoxContainer" parent="Root/PortalDialog/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="Title" type="Label" parent="Root/PortalDialog/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.92, 1, 1)
+theme_override_font_sizes/font_size = 28
+text = "Портал"
+
+[node name="Body" type="Label" parent="Root/PortalDialog/Margin/VBox"]
+custom_minimum_size = Vector2(560, 0)
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_font_sizes/font_size = 19
+text = "Статус портала"
+autowrap_mode = 3
+
+[node name="CloseButton" type="Button" parent="Root/PortalDialog/Margin/VBox"]
+custom_minimum_size = Vector2(0, 64)
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "Закрыть"

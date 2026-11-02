@@ -1,0 +1,117 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/player/player_controller.gd" id="1_controller"]
+[ext_resource type="Script" path="res://scripts/player/player_input.gd" id="2_input"]
+[ext_resource type="Script" path="res://scripts/player/player_interactor.gd" id="3_interactor"]
+[ext_resource type="Script" path="res://scripts/player/player_camera_rig.gd" id="4_camera_rig"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
+radius = 0.4
+height = 1.8
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_interact"]
+radius = 2.2
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_spring"]
+radius = 0.25
+
+[sub_resource type="StandardMaterial3D" id="Material_suit"]
+albedo_color = Color(0.93, 0.47, 0.22, 1)
+roughness = 0.7
+
+[sub_resource type="StandardMaterial3D" id="Material_helmet"]
+albedo_color = Color(0.95, 0.95, 0.98, 1)
+roughness = 0.35
+
+[sub_resource type="StandardMaterial3D" id="Material_visor"]
+albedo_color = Color(0.1, 0.25, 0.35, 1)
+metallic = 0.4
+roughness = 0.15
+emission_enabled = true
+emission = Color(0.2, 0.85, 1, 1)
+emission_energy_multiplier = 0.6
+
+[sub_resource type="StandardMaterial3D" id="Material_pack"]
+albedo_color = Color(0.32, 0.35, 0.42, 1)
+roughness = 0.8
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_body"]
+material = SubResource("Material_suit")
+radius = 0.36
+height = 1.25
+
+[sub_resource type="SphereMesh" id="SphereMesh_helmet"]
+material = SubResource("Material_helmet")
+radius = 0.3
+height = 0.6
+
+[sub_resource type="SphereMesh" id="SphereMesh_visor"]
+material = SubResource("Material_visor")
+radius = 0.2
+height = 0.3
+
+[sub_resource type="BoxMesh" id="BoxMesh_pack"]
+material = SubResource("Material_pack")
+size = Vector3(0.46, 0.55, 0.22)
+
+[node name="Player" type="CharacterBody3D"]
+collision_layer = 2
+collision_mask = 9
+floor_snap_length = 0.25
+script = ExtResource("1_controller")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+shape = SubResource("CapsuleShape3D_body")
+
+[node name="Visual" type="Node3D" parent="."]
+editor_description = "PLACEHOLDER: примитивы вместо модели исследователя. Лицевая сторона смотрит в -Z."
+
+[node name="Body" type="MeshInstance3D" parent="Visual"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.72, 0)
+mesh = SubResource("CapsuleMesh_body")
+
+[node name="Helmet" type="MeshInstance3D" parent="Visual"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.52, 0)
+mesh = SubResource("SphereMesh_helmet")
+
+[node name="Visor" type="MeshInstance3D" parent="Visual"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.54, -0.17)
+mesh = SubResource("SphereMesh_visor")
+
+[node name="Backpack" type="MeshInstance3D" parent="Visual"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.95, 0.33)
+mesh = SubResource("BoxMesh_pack")
+
+[node name="PlayerInput" type="Node" parent="."]
+script = ExtResource("2_input")
+
+[node name="Interactor" type="Area3D" parent="."]
+collision_layer = 0
+collision_mask = 4
+monitorable = false
+script = ExtResource("3_interactor")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Interactor"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+shape = SubResource("SphereShape3D_interact")
+
+[node name="CameraRig" type="Node3D" parent="."]
+top_level = true
+script = ExtResource("4_camera_rig")
+
+[node name="YawPivot" type="Node3D" parent="CameraRig"]
+
+[node name="PitchPivot" type="Node3D" parent="CameraRig/YawPivot"]
+
+[node name="SpringArm3D" type="SpringArm3D" parent="CameraRig/YawPivot/PitchPivot"]
+collision_mask = 1
+shape = SubResource("SphereShape3D_spring")
+spring_length = 5.5
+margin = 0.2
+
+[node name="Camera3D" type="Camera3D" parent="CameraRig/YawPivot/PitchPivot/SpringArm3D"]
+current = true
+fov = 70.0
+near = 0.1
+far = 1500.0

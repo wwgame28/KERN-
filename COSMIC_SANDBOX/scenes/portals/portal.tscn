@@ -1,0 +1,115 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/portals/portal.gd" id="1_portal"]
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_zone"]
+radius = 2.6
+
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_base"]
+height = 0.4
+radius = 2.0
+
+[sub_resource type="StandardMaterial3D" id="Material_stone"]
+albedo_color = Color(0.36, 0.33, 0.45, 1)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Material_ring"]
+albedo_color = Color(0.58, 0.52, 0.75, 1)
+metallic = 0.6
+roughness = 0.35
+
+[sub_resource type="StandardMaterial3D" id="Material_core"]
+transparency = 1
+cull_mode = 2
+albedo_color = Color(0.35, 0.9, 1, 0.55)
+emission_enabled = true
+emission = Color(0.3, 0.85, 1, 1)
+emission_energy_multiplier = 0.6
+
+[sub_resource type="StandardMaterial3D" id="Material_rune"]
+albedo_color = Color(1, 0.5, 0.85, 1)
+emission_enabled = true
+emission = Color(1, 0.4, 0.8, 1)
+emission_energy_multiplier = 1.5
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_base"]
+material = SubResource("Material_stone")
+top_radius = 1.8
+bottom_radius = 2.0
+height = 0.4
+radial_segments = 32
+rings = 1
+
+[sub_resource type="TorusMesh" id="TorusMesh_ring"]
+material = SubResource("Material_ring")
+inner_radius = 1.35
+outer_radius = 1.7
+rings = 48
+ring_segments = 16
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_core"]
+material = SubResource("Material_core")
+top_radius = 1.38
+bottom_radius = 1.38
+height = 0.05
+radial_segments = 48
+rings = 1
+
+[sub_resource type="BoxMesh" id="BoxMesh_rune"]
+material = SubResource("Material_rune")
+size = Vector3(0.22, 0.22, 0.22)
+
+[node name="Portal" type="Area3D"]
+collision_layer = 4
+collision_mask = 0
+monitoring = false
+script = ExtResource("1_portal")
+prompt_text = "Активировать портал"
+portal_name = "Врата Эхо-1"
+
+[node name="InteractionZone" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0)
+shape = SubResource("SphereShape3D_zone")
+
+[node name="Pedestal" type="StaticBody3D" parent="."]
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Pedestal"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 0)
+shape = SubResource("CylinderShape3D_base")
+
+[node name="Visual" type="Node3D" parent="."]
+editor_description = "PLACEHOLDER: примитивы вместо модели портала."
+
+[node name="Base" type="MeshInstance3D" parent="Visual"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 0)
+mesh = SubResource("CylinderMesh_base")
+
+[node name="Ring" type="MeshInstance3D" parent="Visual"]
+transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, 0, 2.1, 0)
+mesh = SubResource("TorusMesh_ring")
+
+[node name="Core" type="MeshInstance3D" parent="Visual"]
+transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, 0, 2.1, 0)
+mesh = SubResource("CylinderMesh_core")
+
+[node name="Orbiter" type="Node3D" parent="Visual"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.1, 0)
+
+[node name="Rune1" type="MeshInstance3D" parent="Visual/Orbiter"]
+transform = Transform3D(0.707107, -0.707107, 0, 0.707107, 0.707107, 0, 0, 0, 1, 1.9, 0, 0)
+mesh = SubResource("BoxMesh_rune")
+
+[node name="Rune2" type="MeshInstance3D" parent="Visual/Orbiter"]
+transform = Transform3D(0.707107, -0.707107, 0, 0.707107, 0.707107, 0, 0, 0, 1, -0.95, 1.645448, 0)
+mesh = SubResource("BoxMesh_rune")
+
+[node name="Rune3" type="MeshInstance3D" parent="Visual/Orbiter"]
+transform = Transform3D(0.707107, -0.707107, 0, 0.707107, 0.707107, 0, 0, 0, 1, -0.95, -1.645448, 0)
+mesh = SubResource("BoxMesh_rune")
+
+[node name="Light" type="OmniLight3D" parent="Visual"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.1, 0.8)
+light_color = Color(0.4, 0.9, 1, 1)
+light_energy = 0.7
+omni_range = 7.0

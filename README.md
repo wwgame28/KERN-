@@ -1,3 +1,5 @@
+> **COSMIC SANDBOX (Godot 4):** игровой проект находится в папке [`COSMIC_SANDBOX/`](COSMIC_SANDBOX/README_RU.md), готовый архив для Xogot — `dist/COSMIC_SANDBOX.zip`. Ниже — документация отдельного деплоя OpenClaw.
+
 # OpenClaw on Amvera + Qwen
 
 Этот репозиторий подготовлен для запуска OpenClaw Gateway в Amvera Cloud без ПК.

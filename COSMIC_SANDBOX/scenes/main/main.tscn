@@ -1,0 +1,22 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/systems/main.gd" id="1_main"]
+[ext_resource type="Script" path="res://scripts/systems/gravity_controller.gd" id="2_gravity"]
+[ext_resource type="PackedScene" path="res://scenes/planets/test_planet.tscn" id="3_planet"]
+[ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="4_player"]
+[ext_resource type="PackedScene" path="res://scenes/ui/hud.tscn" id="5_hud"]
+
+[node name="Main" type="Node3D"]
+script = ExtResource("1_main")
+
+[node name="GravityController" type="Node" parent="."]
+script = ExtResource("2_gravity")
+normal_strength = 9.8
+low_strength = 3.2
+
+[node name="TestPlanet" parent="." instance=ExtResource("3_planet")]
+
+[node name="Player" parent="." instance=ExtResource("4_player")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 6)
+
+[node name="HUD" parent="." instance=ExtResource("5_hud")]
